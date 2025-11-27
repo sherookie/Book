@@ -104,17 +104,8 @@
             height: 600px;
             background-color: #f9f7f3;
             border: 1px solid #c9c9c9;
-            
-            /* 1. 基礎隱藏 */
             overflow: hidden; 
-        
-            /* 2. ★★★ 這裡的 will-change 請移除！ ★★★ */
-            /* will-change: transform; */  <-- 刪掉這行
-        
-            /* 3. ★★★ 保留這行「遮罩密技」，它是解決飛機穿透的關鍵 ★★★ */
             -webkit-mask-image: -webkit-radial-gradient(white, black);
-            
-            /* 4. 保留這些 */
             -webkit-backface-visibility: hidden;
             backface-visibility: hidden;
             position: relative; 
@@ -748,3 +739,4 @@
 </body>
 
 </html>
+
