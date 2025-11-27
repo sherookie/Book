@@ -104,10 +104,20 @@
             height: 600px;
             background-color: #f9f7f3;
             border: 1px solid #c9c9c9;
-            overflow: hidden;
-            will-change: transform;
+            
+            /* 1. 基礎隱藏 */
+            overflow: hidden; 
+        
+            /* 2. ★★★ 這裡的 will-change 請移除！ ★★★ */
+            /* will-change: transform; */  <-- 刪掉這行
+        
+            /* 3. ★★★ 保留這行「遮罩密技」，它是解決飛機穿透的關鍵 ★★★ */
+            -webkit-mask-image: -webkit-radial-gradient(white, black);
+            
+            /* 4. 保留這些 */
             -webkit-backface-visibility: hidden;
             backface-visibility: hidden;
+            position: relative; 
         }
 
         .page img { object-fit: cover; display: block; }
@@ -602,8 +612,6 @@
             const poemSidebar = document.getElementById('poem-sidebar');
             const closeSidebarBtn = document.getElementById('close-sidebar-btn');
             
-            const el = document.getElementById("element");
-
             // 直接執行詩歌動畫
             playPoemAnimation();
 
@@ -643,19 +651,7 @@
                     e.stopPropagation(); 
                     return; 
                 }
-            });
-            // 当鼠标移动到该元素上时给该元素设置 will-change 属性
-            el.addEventListener("mouseenter", hintBrowser);
-            el.addEventListener("animationEnd", removeHint);
-
-            function hintBrowser() {
-            // 将在动画关键帧块中发生变化的可优化属性
-            this.style.willChange = "transform, opacity";
-            }
-
-            function removeHint() {
-            this.style.willChange = "auto";
-            }
+            });        
             
             fabButton.addEventListener('click', (e) => {
                 e.stopPropagation(); 
@@ -750,4 +746,5 @@
         };
     </script>
 </body>
+
 </html>
