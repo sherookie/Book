@@ -624,17 +624,6 @@
             backdrop-filter: blur(10px);
         }
 
-        /* 當螢幕是直向 (portrait) 且屬於行動裝置尺寸時，顯示提示 */
-        @media screen and (max-width: 1024px) and (orientation: portrait) {
-            #orientation-warning {
-                display: flex;
-            }
-            /* 隱藏底下的內容避免直向時破版 */
-            #start-overlay, #flipbook-container {
-                display: none !important; 
-            }
-        }
-
         /* 手機動態翻轉圖示的微動畫 */
         .rotate-icon {
             width: 60px;
