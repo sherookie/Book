@@ -149,7 +149,7 @@
 
         .poem-line.active {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
             filter: blur(0px);
         }
 
@@ -172,19 +172,6 @@
             color: #ffffff;
             text-shadow: 0 0 12px rgba(255, 255, 255, 0.8), 0 0 24px rgba(255, 255, 255, 0.4);
             transform: translateY(-2px) scale(1.02); /* 微微的彈簧懸浮感 */
-        }
-
-        #interaction-hint {
-            text-align: center;
-            font-size: 1.1em;
-            font-weight: normal; 
-            margin-top: 40px;
-            font-family: "微軟正黑體", serif;
-            color: rgba(249, 247, 243, 0.9); /*稍微調亮一點 */
-            position: relative;
-            z-index: 1;
-            /* 【新增】文字陰影 */
-            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
         }
 
         #interaction-hint-cover {
@@ -334,9 +321,21 @@
             }
 
             .poem-line {
-                width: 85vw; /* 適合手機閱讀的行寬 */
-                text-align: center; /* 直式置中比較好看 */
-                white-space: normal; /* 允許自然換行 */
+                font-family: var(--font-serif);
+                font-size: 1rem;
+                line-height: 2.2;
+                width: max-content; 
+                color: rgba(255, 255, 255, 0.85);
+                text-align: left;
+                
+                /* ★★★ 補回遺失的初始狀態與貝茲曲線過渡 ★★★ */
+                opacity: 0;
+                transform: translateY(15px) scale(0.98);
+                filter: blur(10px);
+                transition: 
+                    opacity 1.5s cubic-bezier(0.22, 1, 0.36, 1),
+                    filter 1.5s cubic-bezier(0.22, 1, 0.36, 1),
+                    transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
             }
 
             #start-button {
