@@ -59,10 +59,10 @@
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover; /* 讓影片像 background-size: cover 一樣填滿 */
-            z-index: -2; /* 影片在最底層 */
+            width: 100vw; /* 確保佔滿視窗寬度 */
+            height: 100vh; /* 確保佔滿視窗高度 */
+            object-fit: cover; /* 關鍵：裁切影片以填滿空間，不留黑邊 */
+            z-index: -2;
         }
 
         /* 【新增】半透明遮罩層：讓影片變暗，突顯文字 */
@@ -301,6 +301,37 @@
             transform: translateY(1px) scale(0.96); /* 模擬彈簧下壓 */
         }
         
+        @media screen and (max-width: 1024px) {
+            #poem-content {
+                flex-direction: row; /* 保持橫向 */
+                justify-content: flex-start; /* 改為靠左開始滑動 */
+                gap: 0; /* 移除間距，改用寬度控制 */
+                width: 100vw;
+                height: 60vh;
+                overflow-x: auto; /* 啟用水平滾動 */
+                scroll-snap-type: x mandatory; /* 啟動吸附效果 */
+                -webkit-overflow-scrolling: touch;
+                padding: 0 10vw; /* 左右留白，讓前後句露出邊角 */
+        }
+            .poem-line {
+            min-width: 80vw; /* 每團詩佔據 80% 寬度 */
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            scroll-snap-align: center; /* 滾動時自動置中 */
+            padding: 0 20px;
+            box-sizing: border-box;
+            text-align: center; /* 行動端置中閱讀更舒適 */
+            opacity: 0.3; /* 非焦點區降低透明度 */
+            transition: opacity 0.5s ease;
+        }
+
+        /* 隱藏滾動條，保持視覺純淨 */
+        #poem-content::-webkit-scrollbar {
+            display: none;
+        }
+    }
         /* 熱點動畫 */
         @keyframes subtleFloat {
             0% { transform: translateY(0); }
