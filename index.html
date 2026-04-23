@@ -301,37 +301,86 @@
             transform: translateY(1px) scale(0.96); /* 模擬彈簧下壓 */
         }
         
-        @media screen and (max-width: 1024px) {
+        /* --- 1. 手機直向 (Portrait)：垂直捲動閱讀模式 --- */
+        @media screen and (max-width: 1024px) and (orientation: portrait) {
+            #start-overlay {
+                display: block; /* 改為 block 允許正常往下捲動 */
+                overflow-y: auto;
+                overflow-x: hidden;
+                padding-top: 15vh; /* 頂部留白 */
+                text-align: center;
+                -webkit-overflow-scrolling: touch; /* 讓 iOS 滑動更順暢 */
+            }
+            
+            /* 讓影片與遮罩固定在背景，只有文字會跟著滑動 */
+            #bg-video, #video-overlay {
+                position: fixed; 
+                top: 0;
+                left: 0;
+            }
+
+            #main-title {
+                margin-bottom: 4rem;
+            }
+
             #poem-content {
-                flex-direction: row; /* 保持橫向 */
-                justify-content: flex-start; /* 改為靠左開始滑動 */
-                gap: 0; /* 移除間距，改用寬度控制 */
-                width: 100vw;
-                height: 60vh;
-                overflow-x: auto; /* 啟用水平滾動 */
-                scroll-snap-type: x mandatory; /* 啟動吸附效果 */
-                -webkit-overflow-scrolling: touch;
-                padding: 0 10vw; /* 左右留白，讓前後句露出邊角 */
-        }
+                display: flex;
+                flex-direction: column; /* 直向堆疊詩句 */
+                align-items: center;
+                gap: 5rem; /* 拉開每段的距離，營造閱讀節奏 */
+                width: 100%;
+                margin: 0 auto;
+                padding-bottom: 2rem;
+            }
+
             .poem-line {
-            min-width: 80vw; /* 每團詩佔據 80% 寬度 */
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            scroll-snap-align: center; /* 滾動時自動置中 */
-            padding: 0 20px;
-            box-sizing: border-box;
-            text-align: center; /* 行動端置中閱讀更舒適 */
-            opacity: 0.3; /* 非焦點區降低透明度 */
-            transition: opacity 0.5s ease;
+                width: 85vw; /* 適合手機閱讀的行寬 */
+                text-align: center; /* 直式置中比較好看 */
+                white-space: normal; /* 允許自然換行 */
+            }
+
+            #start-button {
+                margin: 0 auto 15vh auto; /* 確保按鈕在最底下，並留出底部空間 */
+                display: inline-flex !important;
+            }
+
+            /* ★★★ 核心邏輯：只有當 body 被加上 book-mode 時，直向才顯示翻轉提示 ★★★ */
+            #orientation-warning {
+                display: none; /* 預設不顯示 */
+            }
+            body.book-mode #orientation-warning {
+                display: flex; /* 進入繪本後，若還是直式，就跳出警告 */
+            }
+            body.book-mode #flipbook-container {
+                display: none !important; /* 警告出現時先隱藏書本 */
+            }
         }
 
-        /* 隱藏滾動條，保持視覺純淨 */
-        #poem-content::-webkit-scrollbar {
-            display: none;
+        /* --- 2. 手機橫向 (Landscape)：保留橫向吸附排版 (給一開始就拿橫的人) --- */
+        @media screen and (max-width: 1024px) and (orientation: landscape) {
+            #poem-content {
+                flex-direction: row;
+                justify-content: flex-start;
+                gap: 0;
+                width: 100vw;
+                height: 60vh;
+                overflow-x: auto;
+                scroll-snap-type: x mandatory;
+                padding: 0 10vw;
+            }
+            .poem-line {
+                min-width: 80vw;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                scroll-snap-align: center;
+                padding: 0 20px;
+                text-align: center;
+                opacity: 0.3;
+            }
         }
-    }
+
         /* 熱點動畫 */
         @keyframes subtleFloat {
             0% { transform: translateY(0); }
@@ -844,6 +893,7 @@
 
             startOverlay.addEventListener('click', (e) => {
                 if (e.target.id === 'start-button') {
+                    document.body.classList.add('book-mode');
                     if (backgroundMusic) {
                         backgroundMusic.volume = 0.5; 
                         backgroundMusic.play().catch(error => {
