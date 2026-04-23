@@ -314,34 +314,66 @@
 
         /* --- 1. 手機直向 (Portrait)：垂直捲動閱讀模式 --- */
         @media screen and (max-width: 1024px) and (orientation: portrait) {
-        #start-overlay {
-            display: flex; /* ★ 改回 flex 確保子元素能置中 */
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start; /* 從上方開始排列，方便捲動 */
-            overflow-y: auto;
-            padding-top: 15vh;
-            text-align: center;
-        }
+            #start-overlay {
+                display: flex; 
+                flex-direction: column;
+                align-items: center;
+                justify-content: flex-start; /* 從最上方開始排列，讓使用者往下捲 */
+                overflow-y: auto; /* 開啟垂直捲動 */
+                overflow-x: hidden; /* 防止畫面左右晃動 */
+                padding-top: 15vh;
+                text-align: center;
+                -webkit-overflow-scrolling: touch; /* 確保 iOS 滑動手感滑順 */
+            }
 
-        /* 確保影片在手機直向也是全螢幕 Cover */
-        #bg-video {
-            width: 100vw;
-            height: 100vh;
-            object-fit: cover;
+            /* ★ 確保影片與遮罩固定在底層，不會跟著文字一起被滑走 */
+            #bg-video, #video-overlay {
+                position: fixed; 
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                object-fit: cover;
+            }
+            
+            /* ★★★ 補回遺失的關鍵：讓詩句垂直堆疊，並拉開呼吸空間 ★★★ */
+            #poem-content {
+                display: flex;
+                flex-direction: column; /* 強制改為直向堆疊 */
+                align-items: center;
+                gap: 6rem; /* 每段詩之間拉開距離，營造滑動的節奏感 */
+                width: 100%;
+                margin: 0 auto 3rem auto;
+            }
+
+            .poem-line {
+                width: 85vw; /* 適合手機閱讀的行寬 */
+                text-align: center;
+                white-space: normal;
+                margin-left: auto; 
+                margin-right: auto;
+                opacity: 1; 
+                filter: none;
+                transform: none;
+            }
+
+            #start-button {
+                margin: 0 auto 15vh auto; /* 確保按鈕在最底下，並留出底部空間 */
+                display: inline-flex !important;
+                flex-shrink: 0; /* 防止按鈕在捲動時被意外壓縮 */
+            }
+            
+            /* 隱藏手機直向時的提示遮罩，只有在進入 book-mode 時才顯示 */
+            #orientation-warning {
+                display: none;
+            }
+            body.book-mode #orientation-warning {
+                display: flex;
+            }
+            body.book-mode #flipbook-container {
+                display: none !important;
+            }
         }
-        
-        .poem-line {
-            width: 85vw;
-            text-align: center;
-            white-space: normal;
-            margin-left: auto; /* ★ 確保 margin 自動達成水平置中 */
-            margin-right: auto;
-            opacity: 1; /* 手機端直接顯示，減少過渡動畫負擔 */
-            filter: none;
-            transform: none;
-        }
-    }
 
         /* --- 2. 手機橫向 (Landscape)：保留橫向吸附排版 (給一開始就拿橫的人) --- */
         @media screen and (max-width: 1024px) and (orientation: landscape) {
