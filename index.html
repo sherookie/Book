@@ -467,19 +467,6 @@
             user-select: none;
         }
 
-        @media (max-width: 1024px) {
-            #poem-content {
-                flex-direction: column;
-                align-items: center;
-                gap: 3rem;
-                height: 60vh;
-                overflow-y: auto;
-            }
-            .poem-line {
-                text-align: center;
-            }
-        }
-
         #poem-sidebar{
             position: fixed;
             top: 0;
@@ -536,10 +523,72 @@
             margin-bottom: 1.5em;
             white-space: pre-line; 
         }
+
+        /* --- 1. 強制隱藏手機瀏覽器的影片原生播放按鈕 --- */
+        video::-webkit-media-controls {
+            display: none !important;
+        }
+        video::-webkit-media-controls-enclosure {
+            display: none !important;
+        }
+
+        /* --- 2. 翻轉手機提示遮罩 (Orientation Warning) --- */
+        #orientation-warning {
+            display: none; /* 預設隱藏 */
+            position: fixed;
+            inset: 0;
+            background-color: #111; /* 深色沉浸感背景 */
+            color: #fff;
+            z-index: 99999; /* 確保在最上層 */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-family: var(--font-sans);
+            backdrop-filter: blur(10px);
+        }
+
+        /* 當螢幕是直向 (portrait) 且屬於行動裝置尺寸時，顯示提示 */
+        @media screen and (max-width: 1024px) and (orientation: portrait) {
+            #orientation-warning {
+                display: flex;
+            }
+            /* 隱藏底下的內容避免直向時破版 */
+            #start-overlay, #flipbook-container {
+                display: none !important; 
+            }
+        }
+
+        /* 手機動態翻轉圖示的微動畫 */
+        .rotate-icon {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 24px;
+            stroke: rgba(255, 255, 255, 0.8);
+            animation: rotatePhone 2.5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+        }
+
+        @keyframes rotatePhone {
+            0% { transform: rotate(0deg); }
+            40% { transform: rotate(-90deg); } /* 轉向橫的 */
+            60% { transform: rotate(-90deg); } /* 停頓一下 */
+            100% { transform: rotate(0deg); }  /* 轉回來循環 */
+        }
+
     </style>
 </head>
 
 <body>
+
+    <div id="orientation-warning">
+        <svg class="rotate-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+        </svg>
+        <p style="font-size: 1.2rem; letter-spacing: 0.15em; font-weight: 300;">請翻轉手機<br>
+            <span style="font-size: 0.85rem; color: rgba(255,255,255,0.5); margin-top: 12px; display: inline-block; letter-spacing: 0.05em;">以橫向模式獲得最佳互動體驗</span>
+        </p>
+    </div>
 
     <audio id="background-music" src="https://github.com/sherookie/Book/raw/refs/heads/main/BackgroundMusic.mp3" loop></audio>
     <audio id="airplaneSound" preload="auto"><source src="https://github.com/sherookie/Book/raw/refs/heads/main/Airplane.mp3" type="audio/mpeg"></audio>
@@ -712,7 +761,25 @@
             const closeSidebarBtn = document.getElementById('close-sidebar-btn');
             const restartContainer = document.getElementById('restart-container'); 
             const poemParagraphs = document.querySelectorAll('#poem-content .poem-line');
-            
+            const bgVideo = document.getElementById('bg-video');
+            if (bgVideo) {
+                // 嘗試播放影片
+                let playPromise = bgVideo.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.catch(() => {
+                        // 如果自動播放被瀏覽器攔截 (通常是因為省電模式或政策)
+                        // 我們在使用者第一次點擊/觸碰螢幕時強制播放
+                        const forcePlay = () => {
+                            bgVideo.play();
+                            document.removeEventListener('touchstart', forcePlay);
+                            document.removeEventListener('click', forcePlay);
+                        };
+                        document.addEventListener('touchstart', forcePlay, { once: true });
+                        document.addEventListener('click', forcePlay, { once: true });
+                    });
+                }
+            } 
             poemParagraphs.forEach(p => {
                 // 以 <br> 為界線把段落切開
                 const lines = p.innerHTML.split(/<br\s*\/?>/i);
