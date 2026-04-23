@@ -301,9 +301,8 @@
         }
         
         
-/* --- 電腦版：傳統直書與單行發光特效 --- */
+        /* --- 1. 電腦版：傳統直書與單行發光特效 (修復起始位置) --- */
         @media screen and (min-width: 1025px) {
-            
             #reading-zone::-webkit-scrollbar {
                 display: none; 
             }
@@ -317,33 +316,35 @@
                 overflow-y: hidden; 
                 display: flex;
                 align-items: center;
+                
+                /* ★ 核心修復 1：讓容器的排版方向由右至左，捲軸就會天然在右側 */
+                direction: rtl; 
+                justify-content: flex-start; 
                 cursor: default; 
             }
 
-            /* 詩句容器：絕對直書，不准斷行 */
             #scroll-content {
                 writing-mode: vertical-rl;
                 text-orientation: mixed;
+                
+                /* ★ 核心修復 2：將內部文字邏輯改回 ltr，防止標點符號或括號在 RTL 下反轉 */
+                direction: ltr; 
                 height: 75vh; 
-                padding: 0 15vw; 
+                padding: 0 5vw 0 15vw; 
             }
 
-            /* 單行詩句：預設微暗＋微模糊 */
             .poem-column {
                 display: block; 
                 font-family: var(--font-serif);
                 font-size: 1.35rem;
                 letter-spacing: 0.35em;
                 margin-left: 2rem; 
-                
-                /* ★ 動畫核心設定 */
                 color: rgba(255, 255, 255, 0.25); 
                 filter: blur(2.5px); 
                 transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
                 cursor: pointer;
             }
 
-            /* ★ 當滑鼠指到該句時：瞬間清晰、發光、微浮起 */
             .poem-column:hover {
                 color: rgba(255, 255, 255, 1);
                 filter: blur(0px);
@@ -351,41 +352,34 @@
                 transform: scale(1.02);
             }
 
-            .stanza-start {
-                margin-left: 6rem; /* 段落之間的巨大留白 */
-            }
-
-            /* 標題不套用模糊，保持低調的落款感 */
             .title-column {
-                font-size: 0.95rem;
+                font-size: 0.95rem; /* 標題作者縮小 */
                 margin-left: 8rem;
-                line-height: 2;
-                color: rgba(255,255,255,0.4);
+                line-height: 2.2;
+                color: rgba(255,255,255,0.45);
                 filter: none; 
                 cursor: default;
             }
-            .title-column:hover {
-                transform: none;
-                color: rgba(255,255,255,0.6);
-                text-shadow: 0 0 8px rgba(255,255,255,0.3);
+
+            .stanza-start {
+                margin-left: 6rem;
             }
         }
 
-        /* --- 1. 手機直向 (Portrait)：垂直捲動閱讀模式 --- */
+        /* --- 2. 手機直向 (Portrait)：修復按鈕順序與字體層次 --- */
         @media screen and (max-width: 1024px) and (orientation: portrait) {
             #start-overlay {
                 display: flex; 
                 flex-direction: column;
                 align-items: center;
-                justify-content: flex-start; /* 從最上方開始排列，讓使用者往下捲 */
-                overflow-y: auto; /* 開啟垂直捲動 */
-                overflow-x: hidden; /* 防止畫面左右晃動 */
+                justify-content: flex-start;
+                overflow-y: auto; 
+                overflow-x: hidden; 
                 padding-top: 15vh;
                 text-align: center;
-                -webkit-overflow-scrolling: touch; /* 確保 iOS 滑動手感滑順 */
+                -webkit-overflow-scrolling: touch; 
             }
 
-            /* ★ 確保影片與遮罩固定在底層，不會跟著文字一起被滑走 */
             #bg-video, #video-overlay {
                 position: fixed; 
                 top: 0;
@@ -395,34 +389,124 @@
                 object-fit: cover;
             }
             
-            /* ★★★ 補回遺失的關鍵：讓詩句垂直堆疊，並拉開呼吸空間 ★★★ */
-            #poem-content {
+            #scroll-content {
                 display: flex;
-                flex-direction: column; /* 強制改為直向堆疊 */
+                flex-direction: column; 
                 align-items: center;
-                gap: 6rem; /* 每段詩之間拉開距離，營造滑動的節奏感 */
+                gap: 5rem;
                 width: 100%;
-                margin: 0 auto 3rem auto;
+                margin: 0 auto;
+                writing-mode: horizontal-tb; /* 手機維持橫排捲動 */
             }
 
-            .poem-line {
-                width: 85vw; /* 適合手機閱讀的行寬 */
+            .poem-column {
+                width: 85vw; 
                 text-align: center;
                 white-space: normal;
                 margin-left: auto; 
                 margin-right: auto;
-                opacity: 1; 
                 filter: none;
                 transform: none;
+                /* ★ 統一字體與顏色 */
+                font-family: var(--font-serif);
+                font-size: 1.15rem; 
+                line-height: 2.2;
+                color: rgba(255, 255, 255, 0.85); 
             }
 
+            /* ★ 手機版標題作者專屬：縮小、變暗、與首句拉近 */
+            .title-column {
+                font-size: 0.9rem !important; 
+                color: rgba(255, 255, 255, 0.5) !important; 
+                line-height: 1.8;
+                margin-bottom: -2rem; 
+            }
+
+            /* ★ 核心修復：讓按鈕跟在詩歌最末端 */
             #start-button {
-                margin: 0 auto 15vh auto; /* 確保按鈕在最底下，並留出底部空間 */
+                position: relative; /* 取消電腦版的絕對定位 */
+                bottom: auto;
+                margin: 3rem auto 15vh auto; /* 確保在文章末尾並留出底部緩衝 */
                 display: inline-flex !important;
-                flex-shrink: 0; /* 防止按鈕在捲動時被意外壓縮 */
+                flex-shrink: 0; 
             }
             
-            /* 隱藏手機直向時的提示遮罩，只有在進入 book-mode 時才顯示 */
+            #orientation-warning { display: none; }
+            body.book-mode #orientation-warning { display: flex; }
+            body.book-mode #flipbook-container { display: none !important; }
+        }
+
+/* --- 1. 手機直向 (Portrait)：垂直捲動閱讀模式 --- */
+       @media screen and (max-width: 1024px) and (orientation: portrait) {
+            #start-overlay {
+                display: flex; 
+                flex-direction: column;
+                align-items: center;
+                justify-content: flex-start;
+                overflow-y: auto; 
+                overflow-x: hidden; 
+                padding-top: 15vh;
+                text-align: center;
+                -webkit-overflow-scrolling: touch; 
+            }
+
+            #bg-video, #video-overlay {
+                position: fixed; 
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                object-fit: cover;
+            }
+            
+            /* ★ 修正為新的 ID (scroll-content) */
+            #scroll-content {
+                display: flex;
+                flex-direction: column; 
+                align-items: center;
+                gap: 5rem; /* 每段詩之間拉開距離 */
+                width: 100%;
+                margin: 0 auto;
+                /* 取消直書設定，讓手機變回一般的由上往下排列 */
+                writing-mode: horizontal-tb;
+            }
+
+            /* ★ 修正為新的 class (poem-column)，並套用字體與層次 */
+            .poem-column {
+                width: 85vw; 
+                text-align: center;
+                white-space: normal;
+                margin-left: auto; 
+                margin-right: auto;
+                
+                /* 取消電腦版的模糊與暗色效果，讓手機直接清晰好讀 */
+                filter: none;
+                transform: none;
+                
+                /* 同步電腦版的字體與顏色 */
+                font-family: var(--font-serif);
+                font-size: 1.15rem; 
+                line-height: 2.2;
+                color: rgba(255, 255, 255, 0.85); 
+            }
+
+            /* ★ 新增：手機版標題層次 (字體較小、顏色較暗) */
+            .title-column {
+                font-size: 0.9rem !important; 
+                color: rgba(255, 255, 255, 0.5) !important; 
+                line-height: 1.8;
+                margin-bottom: -2rem; /* 稍微拉近與正文的距離 */
+            }
+
+            /* ★ 修復按鈕疊字問題 */
+            #start-button {
+                position: relative; /* 解除電腦版的絕對定位，讓它順著排下來 */
+                bottom: auto;
+                margin: 2rem auto 15vh auto; /* 確保按鈕在文章最尾端，並留出底部空間 */
+                display: inline-flex !important;
+                flex-shrink: 0; 
+            }
+            
             #orientation-warning {
                 display: none;
             }
@@ -434,9 +518,9 @@
             }
         }
 
-        /* --- 2. 手機橫向 (Landscape)：保留橫向吸附排版 (給一開始就拿橫的人) --- */
+        /* --- 2. 手機橫向 (Landscape)：更新新的 class 命名 --- */
         @media screen and (max-width: 1024px) and (orientation: landscape) {
-            #poem-content {
+            #scroll-content {
                 flex-direction: row;
                 justify-content: flex-start;
                 gap: 0;
@@ -445,8 +529,9 @@
                 overflow-x: auto;
                 scroll-snap-type: x mandatory;
                 padding: 0 10vw;
+                writing-mode: horizontal-tb;
             }
-            .poem-line {
+            .poem-column {
                 min-width: 80vw;
                 height: 100%;
                 display: flex;
@@ -455,7 +540,14 @@
                 scroll-snap-align: center;
                 padding: 0 20px;
                 text-align: center;
-                opacity: 0.3;
+                font-family: var(--font-serif);
+                color: rgba(255, 255, 255, 0.85);
+                filter: none;
+                white-space: normal;
+            }
+            .title-column {
+                font-size: 0.9rem !important;
+                color: rgba(255, 255, 255, 0.5) !important;
             }
         }
 
@@ -746,7 +838,7 @@
        <div id="reading-zone">
         <div id="scroll-content" class="poem-container">
             <div class="poem-column title-column">
-                空襲<br>鯨向海<br>乙巳年 暮春
+                空襲<br>鯨向海
             </div>
             
             <div class="poem-column">春天了</div>
@@ -924,7 +1016,20 @@
                 if (startButton) startButton.style.opacity = '1';
             }, 4000); // 4秒後顯示按鈕
 
-            // --- 4. 影片自動播放處理 ---
+            // ★ 強制將畫面鎖定在最右側 (不依賴標題，直接鎖定邊界)
+            setTimeout(() => {
+                if (window.innerWidth > 1024 && readingZone) {
+                    // 在 direction: rtl 的環境下，scrollLeft = 0 或是極大值
+                    // 這裡直接取 scrollWidth 確保推到最右邊
+                    readingZone.scrollLeft = readingZone.scrollWidth;
+                    
+                    // 針對部分瀏覽器 (如 Chrome) 的 RTL 捲軸邏輯微調
+                    if (readingZone.scrollLeft < 0) {
+                        readingZone.scrollLeft = 0;
+                    }
+                }
+            }, 100);
+                        // --- 4. 影片自動播放處理 ---
             if (bgVideo) {
                 let playPromise = bgVideo.play();
                 if (playPromise !== undefined) {
