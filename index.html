@@ -20,6 +20,11 @@
             background-color: #f9f7f3;
         }
 
+        :root {
+            --font-serif: "Noto Serif TC", serif;
+            --font-sans: "Inter", "Geist", "微軟正黑體", sans-serif;
+        }
+
         /* 整個頁面的背景 */
         #flipbook-container {
             opacity: 0; 
@@ -39,23 +44,14 @@
 
         /* 音樂播放的啟動畫面 */
         #start-overlay {
-            position: fixed; 
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background-color: #f9f7f3; 
-            opacity: 1; /* 這裡不用透明度控制背景，因為我們要看清楚影片 */
-            
-            /* 這裡改用 flex 排版讓內容置中 */
-            display: flex;
+            position: fixed;
+            inset: 0;
+            display: flex; /* 啟用 Flexbox */
+            flex-direction: column; /* 垂直排列 */
+            align-items: center; /* ★ 讓標題與按鈕完美置中 */
             justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            z-index: 1000; 
-            overflow: hidden; /* 防止影片超出 */
-            padding: 20px 0; 
-            box-sizing: border-box;
-            transition: opacity 0.5s ease-out; 
-            cursor: default;
+            background-color: transparent; /* ★ 移除黑底，讓背景影片重見天日 */
+            z-index: 1000;
         }
 
         /* 背景影片的樣式 */
@@ -72,13 +68,11 @@
         /* 【新增】半透明遮罩層：讓影片變暗，突顯文字 */
         #video-overlay {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            /* 黑色背景，50% 透明度 (您可以調整 0.5 這個數字，越接近 1 越黑) */
-            background-color: rgba(0, 0, 0, 0.5); 
-            z-index: -1; /* 在影片之上，文字之下 */
+            inset: 0;
+            /* 微調漸層遮罩：中間較透明以透出影片，四周較暗以凸顯白字 */
+            background: radial-gradient(circle at center, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.7) 100%);
+            z-index: -1;
+            pointer-events: none;
         }
 
         #start-overlay p {
@@ -122,38 +116,30 @@
             position: relative; 
         }
         #main-title{
-            margin-top: 10px;
-            position: relative;
-            z-index: 1;
-            /* 【新增】文字陰影，增加可讀性 */
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
-            margin-bottom: -50px;
+            font-family: var(--font-serif);
+            font-size: clamp(1.5rem, 4vw, 2.5rem); /* 動態調整大小 */
+            color: #fff;
+            opacity: 1 !important; /* 強制顯示 */
+            z-index: 10;
+            margin-bottom: 1rem;
         }
         #poem-content {
-            display: grid;
-            grid-template-columns: repeat(4, auto); 
-            gap: 40px; 
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            gap: 4vw; /* ★ 調大間距，讓四團文字呼吸感更好 */
+            width: 100%;
             max-width: 1400px;
-            z-index: 1001; 
-            text-align: left;
-            margin-top: 0px;
-            position: relative; 
-            margin-bottom: -40px;
+            margin-bottom:1rem; /* 與下方的開始按鈕保持距離 */
         }
 
         .poem-line {
-            white-space: pre-line; 
-            color: #f9f7f3; 
-            font-size: 1.5em;
-            margin: 0;
-            line-height: 2;
-            opacity: 0;
-            transition: opacity 1.5s ease-in, transform 1s ease-out;
-            transform: translateY(20px);
-            font-family: "微軟正黑體", serif;
-            font-weight: bold;
-            /* 【新增】文字陰影，增加可讀性 */
-            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.8);
+            font-family: var(--font-serif);
+            font-size: 1rem;
+            line-height: 2.2;
+            width: max-content; /* ★ 關鍵：讓寬度根據文字長度自動延展，確保只在 <br> 處斷行 */
+            color: rgba(255, 255, 255, 0.85);
+            text-align: left;
         }
 
         .poem-line:focus {
@@ -164,6 +150,28 @@
         .poem-line.active {
             opacity: 1;
             transform: translateY(0);
+            filter: blur(0px);
+        }
+
+        .poem-line .sentence-hover {
+            display: inline-block; /* 讓單行可以擁有獨立的位移變換 */
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            color: rgba(255, 255, 255, 0.7); /* 預設稍微暗一點的半透明白 */
+            cursor: default;
+        }
+
+        .poem-line:hover .sentence-hover {
+            opacity: 0.3;
+            filter: blur(1.5px);
+        }
+
+        /* 互動核心二：但是，被滑鼠「精準指到」的那一句，會清晰亮起、發光並微微浮現 */
+        .poem-line .sentence-hover:hover {
+            opacity: 1;
+            filter: blur(0px);
+            color: #ffffff;
+            text-shadow: 0 0 12px rgba(255, 255, 255, 0.8), 0 0 24px rgba(255, 255, 255, 0.4);
+            transform: translateY(-2px) scale(1.02); /* 微微的彈簧懸浮感 */
         }
 
         #interaction-hint {
@@ -177,6 +185,21 @@
             z-index: 1;
             /* 【新增】文字陰影 */
             text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+        }
+
+        #interaction-hint-cover {
+            position: absolute;
+            left: 25%; /* 固定在畫面的左側 */
+            top: 50%;
+            transform: translateY(-50%);
+            writing-mode: vertical-rl; /* 改為直書排版，更有實體書扉頁的設計感 */
+            white-space: nowrap;
+            letter-spacing: 0.3em;
+            font-family: var(--font-sans);
+            font-size: 0.9rem;
+            color: rgba(0, 0, 0, 0.4); /* 灰色浮水印質感 */
+            z-index: -1; /* ★ 關鍵：設定為負數，確保翻開書頁時會壓過這行字 */
+            pointer-events: none;
         }
 
         #restart-container {
@@ -251,26 +274,31 @@
         }
 
         #start-button {
-            margin-top: 60px;
-            padding: 12px 30px;
-            font-size: 1.2em;
-            background-color: #f9f7f3; 
-            color: #303861;
-            border: 3px solid #303861;
-            border-radius: 50px; 
-            cursor: pointer;
-            opacity: 0;
-            transition: opacity 0.5s ease-in, transform 0.2s;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5); /* 加深按鈕陰影 */
-            font-family: "微軟正黑體", serif;
-            caret-color: transparent;
-            position: relative;
-            z-index: 1;
+            
+            font-family: var(--font-sans);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 12px 32px;
+            border-radius: 100px;
+            color: #fff;
+            font-weight: 500;
+            opacity: 1 !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            /* 不用再設 margin: 0 auto，外層的 Flex 已經幫你置中了 */
         }
 
         #start-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+            background: rgba(255, 255, 255, 1);
+            color: #000;
+            transform: translateY(-2px) scale(1.02);
+        }
+
+        #start-button:active{
+            transform: translateY(1px) scale(0.96); /* 模擬彈簧下壓 */
         }
         
         /* 熱點動畫 */
@@ -439,11 +467,16 @@
             user-select: none;
         }
 
-        @media (min-width: 768px) {
+        @media (max-width: 1024px) {
             #poem-content {
-                grid-template-columns: repeat(4, auto); /* 改為 4 欄 */
-                width: auto; /* 寬度自動 */
-                margin-top: 50px; /* 匹配您要的桌面邊距 */
+                flex-direction: column;
+                align-items: center;
+                gap: 3rem;
+                height: 60vh;
+                overflow-y: auto;
+            }
+            .poem-line {
+                text-align: center;
             }
         }
 
@@ -525,47 +558,45 @@
         <h1 id="main-title" class="poem-line" data-delay="0">《A夢》空襲 鯨向海</h1>
         <div id="poem-content">
             <p class="poem-line" data-delay="1000">
-            春天了
-            被同一種光線籠罩
-            沒有去過的駕駛艙
-            在隱隱發動著
-            螺旋槳上，你的喜樂哀愁
-            必然累壞了
+            春天了<br>
+            被同一種光線籠罩<br>
+            沒有去過的駕駛艙<br>
+            在隱隱發動著<br>
+            螺旋槳上，你的喜樂哀愁<br>
+            必然累壞了<br>
             而這是戰爭，這又是戰爭
             </p>
             <p class="poem-line" data-delay="3000">
-            試著施展輕功往上飛
-            會突然掉下來變成空襲
-            什麼曾緊握在手中
-            拋擲出去就變成空襲
-            多少次
-            人生必勝的光輝時刻
+            試著施展輕功往上飛<br>
+            會突然掉下來變成空襲<br>
+            什麼曾緊握在手中<br>
+            拋擲出去就變成空襲<br>
+            多少次<br>
+            人生必勝的光輝時刻<br>
             我投降了
             </p>
             <p class="poem-line" data-delay="5000">
-            掀開微涼的馬桶蓋
-            忍不住還是坐下去
-            對牠們全面空襲
-            在優雅而反光的咖啡窗玻璃
-            在某節睡夢中逝去的車廂裡
-            我以為自己可以永遠
+            掀開微涼的馬桶蓋<br>
+            忍不住還是坐下去<br>
+            對牠們全面空襲<br>
+            在優雅而反光的咖啡窗玻璃<br>
+            在某節睡夢中逝去的車廂裡<br>
+            我以為自己可以永遠<br>
             安於這些
             </p>
             <p class="poem-line" data-delay="7000">
-            胸前種出一片防風林
-            不讓那些暗湧靠近
-            累壞了
-            這是戰爭，豈料這又是戰爭
-            眼淚碎了又滲，擦了又滴
+            胸前種出一片防風林<br>
+            不讓那些暗湧靠近<br>
+            累壞了<br>
+            這是戰爭，豈料這又是戰爭<br>
+            眼淚碎了又滲，擦了又滴<br>
             不斷對舊日的理想空襲
             </p>
         </div>
         
-        <p id="interaction-hint" class="poem-line" data-delay="8000">
-            （小提示：試著點擊書頁中發光的物件，會有驚喜喔！）
-        </p>
+        
 
-        <button id="start-button" style="display: block;opacity: 0;">開始閱讀 ➜</button>     
+        <button id="start-button" style="display: block;opacity: 0;">前往繪本</button>     
     </div>
 
     <div id="text-fab" style="display: none;" title="點擊切換詩原文">文</div>
@@ -618,6 +649,9 @@
     </div>
 
     <div id="flipbook-container">
+        <div id="interaction-hint-cover">
+        小提示：試著點擊書頁中發光的物件。
+        </div>
         <div id="book">
             <div class="page page--cover">
                 <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_1.png" alt="封面">
@@ -677,7 +711,22 @@
             const poemSidebar = document.getElementById('poem-sidebar');
             const closeSidebarBtn = document.getElementById('close-sidebar-btn');
             const restartContainer = document.getElementById('restart-container'); 
-
+            const poemParagraphs = document.querySelectorAll('#poem-content .poem-line');
+            
+            poemParagraphs.forEach(p => {
+                // 以 <br> 為界線把段落切開
+                const lines = p.innerHTML.split(/<br\s*\/?>/i);
+                // 將每一行用 span 包起來（略過空行）
+                const wrappedLines = lines.map(line => {
+                    if (line.trim() !== '') {
+                        return `<span class="sentence-hover">${line}</span>`;
+                    }
+                    return line;
+                });
+                // 用 <br> 重新組合放回段落中
+                p.innerHTML = wrappedLines.join('<br>');
+            });
+            
             // 直接執行詩歌動畫
             playPoemAnimation();
 
