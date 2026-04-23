@@ -140,6 +140,15 @@
             width: max-content; /* ★ 關鍵：讓寬度根據文字長度自動延展，確保只在 <br> 處斷行 */
             color: rgba(255, 255, 255, 0.85);
             text-align: left;
+
+            /* ★★★ 這才是動畫該待的正確位置 (全域) ★★★ */
+            opacity: 0;
+            transform: translateY(15px) scale(0.98);
+            filter: blur(10px);
+            transition: 
+                opacity 1.5s cubic-bezier(0.22, 1, 0.36, 1),
+                filter 1.5s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
         }
 
         .poem-line:focus {
@@ -321,25 +330,13 @@
             }
 
             .poem-line {
-                font-family: var(--font-serif);
-                font-size: 1rem;
-                line-height: 2.2;
-                width: max-content; 
-                color: rgba(255, 255, 255, 0.85);
-                text-align: left;
-                
-                /* ★★★ 補回遺失的初始狀態與貝茲曲線過渡 ★★★ */
-                opacity: 0;
-                transform: translateY(15px) scale(0.98);
-                filter: blur(10px);
-                transition: 
-                    opacity 1.5s cubic-bezier(0.22, 1, 0.36, 1),
-                    filter 1.5s cubic-bezier(0.22, 1, 0.36, 1),
-                    transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+                width: 85vw; 
+                text-align: center; 
+                white-space: normal;
             }
 
             #start-button {
-                margin: 0 auto 15vh auto; /* 確保按鈕在最底下，並留出底部空間 */
+                margin: 0 auto 15vh auto;
                 display: inline-flex !important;
             }
 
