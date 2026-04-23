@@ -436,8 +436,73 @@
             body.book-mode #flipbook-container { display: none !important; }
         }
 
-/* --- 1. 手機直向 (Portrait)：垂直捲動閱讀模式 --- */
-       @media screen and (max-width: 1024px) and (orientation: portrait) {
+        /* ==========================================
+           1. 電腦版：傳統直書與單行發光特效
+           ========================================== */
+        @media screen and (min-width: 1025px) {
+            #reading-zone::-webkit-scrollbar { display: none; }
+            #reading-zone {
+                -ms-overflow-style: none;  
+                scrollbar-width: none;  
+                width: 100vw;
+                height: 100vh;
+                overflow-x: auto; 
+                overflow-y: hidden; 
+                display: flex;
+                align-items: center;
+                direction: rtl; 
+                justify-content: flex-start; 
+                cursor: default; 
+            }
+
+            #scroll-content {
+                writing-mode: vertical-rl;
+                text-orientation: mixed;
+                direction: ltr; 
+                height: 75vh; 
+                padding: 0 5vw 0 15vw; 
+            }
+
+            .poem-column {
+                display: block; 
+                font-family: var(--font-serif);
+                font-size: 1.35rem;
+                letter-spacing: 0.35em;
+                /* ★ 電腦版直書核心修正：縮小欄與欄的間距 (行距) */
+                margin-left: 1rem; 
+                color: rgba(255, 255, 255, 0.25); 
+                filter: blur(2.5px); 
+                transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+                cursor: pointer;
+            }
+
+            .poem-column:hover {
+                color: rgba(255, 255, 255, 1);
+                filter: blur(0px);
+                text-shadow: 0 0 12px rgba(255, 255, 255, 0.8), 0 0 24px rgba(255, 255, 255, 0.4);
+                transform: scale(1.02);
+            }
+
+            .title-column {
+                font-size: 0.95rem; 
+                /* ★ 標題與第一段的距離 */
+                margin-left: 5rem;
+                line-height: 2.2;
+                color: rgba(255,255,255,0.45);
+                filter: none; 
+                cursor: default;
+            }
+
+            .stanza-start {
+                /* ★ 段落之間的距離 */
+                margin-left: 3.5rem;
+            }
+        }
+
+        /* ==========================================
+           2. 手機版 (直/橫向統一)：垂直捲動閱讀模式
+           ========================================== */
+        @media screen and (max-width: 1024px) {
             #start-overlay {
                 display: flex; 
                 flex-direction: column;
@@ -459,97 +524,67 @@
                 object-fit: cover;
             }
             
-            /* ★ 修正為新的 ID (scroll-content) */
             #scroll-content {
                 display: flex;
                 flex-direction: column; 
                 align-items: center;
-                gap: 5rem; /* 每段詩之間拉開距離 */
+                /* ★ 手機版橫書核心修正：將每句詩的上下間距大幅縮小 */
+                gap: 0.8rem; 
                 width: 100%;
                 margin: 0 auto;
-                /* 取消直書設定，讓手機變回一般的由上往下排列 */
                 writing-mode: horizontal-tb;
+                height: auto;
+                padding: 0;
             }
 
-            /* ★ 修正為新的 class (poem-column)，並套用字體與層次 */
             .poem-column {
                 width: 85vw; 
+                max-width: 600px;
                 text-align: center;
                 white-space: normal;
-                margin-left: auto; 
-                margin-right: auto;
-                
+                margin: 0; /* 清除不必要的 margin */
                 filter: none;
                 transform: none;
-                
                 font-family: var(--font-serif);
                 font-size: 1.15rem; 
-                /* ★ 修正：縮小行高至 1.5，增加詩句的凝聚力 */
-                line-height: 1.5; 
+                /* ★ 內部若有折行，行高收緊為 1.4 */
+                line-height: 1.4; 
                 color: rgba(255, 255, 255, 0.85); 
             }
 
-            /* ★ 新增：手機版標題層次 (字體較小、顏色較暗) */
+            /* ★ 建立段落之間的呼吸空間 */
+            .stanza-start {
+                margin-top: 2.5rem; 
+            }
+
             .title-column {
                 font-size: 0.9rem !important; 
                 color: rgba(255, 255, 255, 0.5) !important; 
-                line-height: 1.8;
-                margin-bottom: -2rem; /* 稍微拉近與正文的距離 */
+                line-height: 1.5;
+                margin-bottom: 2rem; 
             }
 
-            /* ★ 修復按鈕疊字問題 */
             #start-button {
-                position: relative; /* 解除電腦版的絕對定位，讓它順著排下來 */
+                position: relative; 
                 bottom: auto;
-                margin: 2rem auto 15vh auto; /* 確保按鈕在文章最尾端，並留出底部空間 */
+                margin: 3rem auto 15vh auto; 
                 display: inline-flex !important;
                 flex-shrink: 0; 
             }
-            
-            #orientation-warning {
-                display: none;
-            }
-            body.book-mode #orientation-warning {
-                display: flex;
-            }
-            body.book-mode #flipbook-container {
-                display: none !important;
-            }
         }
 
-        /* --- 2. 手機橫向 (Landscape)：更新新的 class 命名 --- */
+        /* ==========================================
+           3. 手機版：針對直向/橫向的狀態切換與警告
+           ========================================== */
+        @media screen and (max-width: 1024px) and (orientation: portrait) {
+            #orientation-warning { display: none; }
+            body.book-mode #orientation-warning { display: flex; }
+            body.book-mode #flipbook-container { display: none !important; }
+        }
+
         @media screen and (max-width: 1024px) and (orientation: landscape) {
-            #scroll-content {
-                flex-direction: row;
-                justify-content: flex-start;
-                gap: 0;
-                width: 100vw;
-                height: 60vh;
-                overflow-x: auto;
-                scroll-snap-type: x mandatory;
-                padding: 0 10vw;
-                writing-mode: horizontal-tb;
-            }
-            .poem-column {
-                width: 85vw; 
-                text-align: center;
-                white-space: normal;
-                margin-left: auto; 
-                margin-right: auto;
-                
-                filter: none;
-                transform: none;
-                
-                font-family: var(--font-serif);
-                font-size: 1.15rem; 
-                /* ★ 修正：縮小行高至 1.5，增加詩句的凝聚力 */
-                line-height: 1.5; 
-                color: rgba(255, 255, 255, 0.85); 
-            }
-            .title-column {
-                font-size: 0.9rem !important;
-                color: rgba(255, 255, 255, 0.5) !important;
-            }
+            #orientation-warning { display: none !important; }
+            body.book-mode #flipbook-container { display: flex !important; }
         }
 
         /* 熱點動畫 */
