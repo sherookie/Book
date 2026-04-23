@@ -297,60 +297,51 @@
             transform: translateY(1px) scale(0.96); /* 模擬彈簧下壓 */
         }
         
-        /* --- 1. 手機直向 (Portrait)：垂直捲動閱讀模式 --- */
-        @media screen and (max-width: 1024px) and (orientation: portrait) {
-            #start-overlay {
-                display: block; /* 改為 block 允許正常往下捲動 */
-                overflow-y: auto;
-                overflow-x: hidden;
-                padding-top: 15vh; /* 頂部留白 */
-                text-align: center;
-                -webkit-overflow-scrolling: touch; /* 讓 iOS 滑動更順暢 */
+        
+        @media (hover: hover) {
+            .poem-line:hover .sentence-hover {
+                opacity: 0.3;
+                filter: blur(1.5px);
             }
-            
-            /* 讓影片與遮罩固定在背景，只有文字會跟著滑動 */
-            #bg-video, #video-overlay {
-                position: fixed; 
-                top: 0;
-                left: 0;
-            }
-
-            #main-title {
-                margin-bottom: 4rem;
-            }
-
-            #poem-content {
-                display: flex;
-                flex-direction: column; /* 直向堆疊詩句 */
-                align-items: center;
-                gap: 5rem; /* 拉開每段的距離，營造閱讀節奏 */
-                width: 100%;
-                margin: 0 auto;
-                padding-bottom: 2rem;
-            }
-
-            .poem-line {
-                width: 85vw; 
-                text-align: center; 
-                white-space: normal;
-            }
-
-            #start-button {
-                margin: 0 auto 15vh auto;
-                display: inline-flex !important;
-            }
-
-            /* ★★★ 核心邏輯：只有當 body 被加上 book-mode 時，直向才顯示翻轉提示 ★★★ */
-            #orientation-warning {
-                display: none; /* 預設不顯示 */
-            }
-            body.book-mode #orientation-warning {
-                display: flex; /* 進入繪本後，若還是直式，就跳出警告 */
-            }
-            body.book-mode #flipbook-container {
-                display: none !important; /* 警告出現時先隱藏書本 */
+            .poem-line .sentence-hover:hover {
+                opacity: 1;
+                filter: blur(0px);
+                color: #ffffff;
+                text-shadow: 0 0 12px rgba(255, 255, 255, 0.8), 0 0 24px rgba(255, 255, 255, 0.4);
+                transform: translateY(-2px) scale(1.02);
             }
         }
+
+        /* --- 1. 手機直向 (Portrait)：垂直捲動閱讀模式 --- */
+        @media screen and (max-width: 1024px) and (orientation: portrait) {
+        #start-overlay {
+            display: flex; /* ★ 改回 flex 確保子元素能置中 */
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start; /* 從上方開始排列，方便捲動 */
+            overflow-y: auto;
+            padding-top: 15vh;
+            text-align: center;
+        }
+
+        /* 確保影片在手機直向也是全螢幕 Cover */
+        #bg-video {
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+        }
+        
+        .poem-line {
+            width: 85vw;
+            text-align: center;
+            white-space: normal;
+            margin-left: auto; /* ★ 確保 margin 自動達成水平置中 */
+            margin-right: auto;
+            opacity: 1; /* 手機端直接顯示，減少過渡動畫負擔 */
+            filter: none;
+            transform: none;
+        }
+    }
 
         /* --- 2. 手機橫向 (Landscape)：保留橫向吸附排版 (給一開始就拿橫的人) --- */
         @media screen and (max-width: 1024px) and (orientation: landscape) {
@@ -655,7 +646,7 @@
 
     <div id="start-overlay">
         
-        <video id="bg-video" autoplay loop muted playsinline>
+        <video id="bg-video" autoplay loop muted playsinline webkit-playsinline>
             <source src="https://raw.githubusercontent.com/sherookie/Book/main/background.mp4" type="video/mp4">
         </video>
         
@@ -1015,12 +1006,13 @@
                     const currentPageIndex = e.data;
 
                     if (restartContainer) {
-                        // 如果當前頁碼 >= 最後一頁的索引 (即翻到了封底)
-                        if (currentPageIndex >= totalPages - 1) {
-                            restartContainer.classList.add('visible'); // 顯示按鈕
-                        } else {
-                            restartContainer.classList.remove('visible'); // 隱藏按鈕
-                        }
+                        const reloadPage = (e) => {
+                            e.stopPropagation();
+                            // 移除書本模式標籤，確保回到首頁時 UI 狀態重置
+                            document.body.classList.remove('book-mode');
+                            window.location.reload(); 
+                        };
+                        restartContainer.addEventListener('click', reloadPage);
                     }
                 });
             }
