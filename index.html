@@ -479,14 +479,13 @@
                 margin-left: auto; 
                 margin-right: auto;
                 
-                /* 取消電腦版的模糊與暗色效果，讓手機直接清晰好讀 */
                 filter: none;
                 transform: none;
                 
-                /* 同步電腦版的字體與顏色 */
                 font-family: var(--font-serif);
                 font-size: 1.15rem; 
-                line-height: 1.2;
+                /* ★ 修正：縮小行高至 1.5，增加詩句的凝聚力 */
+                line-height: 1.5; 
                 color: rgba(255, 255, 255, 0.85); 
             }
 
@@ -532,18 +531,20 @@
                 writing-mode: horizontal-tb;
             }
             .poem-column {
-                min-width: 80vw;
-                height: 100%;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                scroll-snap-align: center;
-                padding: 0 20px;
+                width: 85vw; 
                 text-align: center;
-                font-family: var(--font-serif);
-                color: rgba(255, 255, 255, 0.85);
-                filter: none;
                 white-space: normal;
+                margin-left: auto; 
+                margin-right: auto;
+                
+                filter: none;
+                transform: none;
+                
+                font-family: var(--font-serif);
+                font-size: 1.15rem; 
+                /* ★ 修正：縮小行高至 1.5，增加詩句的凝聚力 */
+                line-height: 1.5; 
+                color: rgba(255, 255, 255, 0.85); 
             }
             .title-column {
                 font-size: 0.9rem !important;
