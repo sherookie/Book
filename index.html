@@ -991,8 +991,8 @@ window.addEventListener('load', () => {
      ========================================================= */
   let openingTimers = [];
   let openingDone = false;
-  let pageFlip; // 宣告在外層以便按鈕取用
-  let echoTriggered = false; // 將觸發狀態也提至外層
+  let pageFlip; 
+  let echoTriggered = false; 
 
   function schedule(fn, delay) {
     const t = setTimeout(fn, delay);
@@ -1058,29 +1058,6 @@ window.addEventListener('load', () => {
     }, 100);
   }
 
-  /* =========================================================
-     SKIP — 點擊空白 / 鍵盤
-     ========================================================= */
-  function skipOpeningAnimation() {
-    if (openingDone) return;
-    clearOpeningTimers();
-
-    titleChars.forEach(c => c.classList.add('in'));
-    titleEn?.classList.add('in');
-    titleLine?.classList.add('in');
-    bookTitle.classList.add('has-left');
-    readingZone.classList.add('in');
-    poemCols.forEach(p => p.classList.add('in'));
-
-    invitation.classList.add('subtle', 'full');
-    skipHint.classList.remove('in');
-
-    if (window.innerWidth > 1024 && readingZone) {
-      readingZone.scrollLeft = readingZone.scrollWidth;
-      if (readingZone.scrollLeft < 0) readingZone.scrollLeft = 0;
-    }
-    openingDone = true;
-  }
 
   // 點擊空白觸發 skip（避開詩、按鈕）
   startOverlay.addEventListener('click', (e) => {
@@ -1175,6 +1152,7 @@ window.addEventListener('load', () => {
   /* =========================================================
      FLIPBOOK 初始化 (保留原邏輯 + 加封底迴響觸發)
      ========================================================= */
+
   function initializeFlipbook() {
     const book = document.getElementById('book');
     if (book) book.style.display = 'block';
@@ -1209,18 +1187,6 @@ window.addEventListener('load', () => {
       return;
     }
 
-    const pageFlip = new St.PageFlip(book, {
-      width: 2792, height: 3167, size: "stretch",
-      minWidth: 320, minHeight: 480,
-      drawShadow: true, flippingTime: 800,
-      showCover: true, useMouseEvents: true, useTouchEvents: true
-    });
-
-    pageFlip.loadFromHTML(document.querySelectorAll('.page'));
-
-    if (typeof St === 'undefined' || typeof St.PageFlip === 'undefined') return;
-
-    // 確保不會重複初始化
     if (!pageFlip) {
       pageFlip = new St.PageFlip(book, {
         width: 2792, height: 3167, size: "stretch",
@@ -1235,20 +1201,10 @@ window.addEventListener('load', () => {
         const totalPages = pageFlip.getPageCount();
         if (e.data >= totalPages - 1 && !echoTriggered) {
           echoTriggered = true;
-          setTimeout(() => triggerEchoOverlay(), 2000);
+          setTimeout(() => triggerEchoOverlay(), 800);
         }
       });
     }
-
-    // 翻到最後一頁觸發迴響（延遲 2 秒讓使用者看封底插圖）
-    let echoTriggered = false;
-    pageFlip.on('flip', (e) => {
-      const totalPages = pageFlip.getPageCount();
-      if (e.data >= totalPages - 1 && !echoTriggered) {
-        echoTriggered = true;
-        setTimeout(() => triggerEchoOverlay(), 2000);
-      }
-    });
   }
 
   /* =========================================================
@@ -1296,86 +1252,138 @@ window.addEventListener('load', () => {
   }
 
 /* =========================================================
-     按鈕邏輯：重置與跳轉
+     SKIP — 點擊空白 / 鍵盤 (強制置頂修復)
      ========================================================= */
-     
-  // 建立一個專屬函式：徹底清除第一次進場留下的動畫狀態
+  function skipOpeningAnimation() {
+    if (openingDone) return;
+    clearOpeningTimers();
+
+    titleChars.forEach(c => c.classList.add('in'));
+    titleEn?.classList.add('in');
+    titleLine?.classList.add('in');
+    bookTitle.classList.add('has-left');
+    readingZone.classList.add('in');
+    
+    // 【修復】：如果使用者選擇跳過，強制讓畫面停在第一句，而不是不知名的位置
+    readingZone.scrollTop = 0; 
+    
+    poemCols.forEach(p => p.classList.add('in'));
+
+    invitation.classList.add('subtle', 'full');
+    skipHint.classList.remove('in');
+
+    openingDone = true;
+  }
+
+  // 點擊空白觸發 skip（避開詩、按鈕、還有標題 Logo）
+  startOverlay.addEventListener('click', (e) => {
+    if (openingDone) return;
+    if (e.target.closest('.poem-column, .invitation, .book-title')) return;
+    skipOpeningAnimation();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (openingDone || startOverlay.style.display === 'none') return;
+    if (e.key === ' ' || e.key === 'Enter' || e.key === 'Escape') {
+      e.preventDefault();
+      skipOpeningAnimation();
+    }
+  });
+
+
+  /* =========================================================
+     按鈕邏輯：重置與跳轉 (修復滾動失效問題)
+     ========================================================= */
   function resetOpeningState() {
-    // 1. 清除標題狀態
     bookTitle.classList.remove('has-left');
     titleChars.forEach(ch => ch.classList.remove('in'));
     if (titleEn) titleEn.classList.remove('in');
     if (titleLine) titleLine.classList.remove('in');
 
-    // 2. 清除詩句與容器狀態
     readingZone.classList.remove('in');
-    readingZone.scrollTop = 0; // 重置垂直滾動，回到第一句
+    setTimeout(() => { readingZone.scrollTop = 0; }, 10);
+    
     poemCols.forEach(col => {
       col.classList.remove('in', 'exiting', 'stanza-active');
+      col.style.opacity = '';
+      col.style.filter = '';
+      col.style.transform = '';
     });
 
-    // 3. 清除邀請按鈕的 inline style (之前進書本時被設為隱藏了)
     invitation.classList.remove('subtle', 'full');
     invitation.style.opacity = ''; 
     invitation.style.transition = '';
-
-    // 4. 清除 Skip 提示狀態
     skipHint.classList.remove('in');
+
+    openingDone = false; 
+    clearOpeningTimers();
   }
 
-  // 「再讀一次」: 翻回首頁，音樂繼續播
-  document.getElementById('echoRestart').addEventListener('click', () => {
-    // 1. 隱藏封底迴響畫面
-    echoOverlay.classList.remove('visible');
-    setTimeout(() => { echoOverlay.setAttribute('aria-hidden', 'true'); }, 1800);
+  // 【新增】：建立一個專屬函式來清洗「封底」的動畫殘留
+  function resetEchoState() {
+    document.getElementById('echoLineTop').classList.remove('in');
+    document.getElementById('echoCursor').classList.remove('in', 'gone');
+    document.getElementById('echoLineBottom').classList.remove('in');
+    document.getElementById('echoMeta').classList.remove('in');
+    document.getElementById('echoActions').classList.remove('in');
+    document.getElementById('echoText').innerHTML = ''; // 清空文字
+  }
 
-    // 2. 觸發翻書動畫，帥氣地翻回第 1 頁封面 (音樂不會中斷)
+  // 「再讀一次」: 翻回首頁
+  document.getElementById('echoRestart').addEventListener('click', () => {
+    echoOverlay.classList.remove('visible');
+    setTimeout(() => { 
+      echoOverlay.setAttribute('aria-hidden', 'true'); 
+      resetEchoState(); // 【修復】：畫面隱藏後，偷偷把動畫洗掉
+    }, 1800);
+
     if (pageFlip) {
-      pageFlip.flip(0); 
+      pageFlip.turnToPage(0); 
     }
-    
-    // 3. 重置狀態，允許再次翻到最後一頁時能重新觸發迴響
     echoTriggered = false; 
   });
 
-  // 「結束」: 退回起始畫面，從標題動畫重新開始
+  // 「結束」: 退回起始畫面
   document.getElementById('echoEnd').addEventListener('click', () => {
-    // 1. 隱藏封底迴響畫面
     echoOverlay.classList.remove('visible');
-    setTimeout(() => { echoOverlay.setAttribute('aria-hidden', 'true'); }, 1800);
+    setTimeout(() => { 
+      echoOverlay.setAttribute('aria-hidden', 'true'); 
+      resetEchoState(); // 【修復】：畫面隱藏後，偷偷把動畫洗掉
+    }, 1800);
 
-    // 2. 音樂淡出並暫停
     if (backgroundMusic) {
       const fadeStep = setInterval(() => {
         if (backgroundMusic.volume > 0.05) {
           backgroundMusic.volume -= 0.05;
         } else { 
           backgroundMusic.pause(); 
-          backgroundMusic.currentTime = 0; // 音樂回到開頭，等下次進入再播
+          backgroundMusic.currentTime = 0; 
           clearInterval(fadeStep); 
         }
       }, 80);
     }
 
-    // 3. 隱藏繪本，重置書本狀態
     document.body.classList.remove('book-mode');
     bookContainer.classList.remove('show-book');
     if (pageFlip) {
-      pageFlip.turnToPage(0); // 確保下次進來時是翻好在第一頁的狀態
+      pageFlip.turnToPage(0); 
     }
     echoTriggered = false;
 
-    // 4. 徹底重置起始畫面的所有動畫狀態
     resetOpeningState();
 
-    // 5. 重新顯示起始畫面，並呼叫進場序列
     startOverlay.style.display = 'flex';
     setTimeout(() => { 
       startOverlay.style.opacity = '1'; 
-      runOpeningSequence(); // 從「空襲」標題字體浮現開始重新跑
+      requestAnimationFrame(() => {
+        readingZone.scrollTop = 0; 
+      });
+      runOpeningSequence(); 
     }, 50);
   });
-runOpeningSequence();
+
+  /* === 網頁一打開就自動啟動開場動畫 === */
+  runOpeningSequence();
 
 });
 </script>
