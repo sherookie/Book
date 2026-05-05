@@ -1,1190 +1,1384 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>空襲</title>
-    
-    <link rel="icon" href="https://raw.githubusercontent.com/sherookie/Book/main/plane.png" type="image/png">
-    
-    <script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.min.js"> </script>
-
-    <style>
-        /* 讓書本容器填滿整個瀏覽器視窗 */
-        html, body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            width: 100%;
-            overflow: hidden; /* 隱藏捲軸 */
-            background-color: #f9f7f3;
-        }
-
-        :root {
-            --font-serif: "Noto Serif TC", serif;
-            --font-sans: "Inter", "Geist", "微軟正黑體", sans-serif;
-        }
-
-        /* 整個頁面的背景 */
-        #flipbook-container {
-            opacity: 0; 
-            transform: scale(0.95);
-            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
-            width: 100%;
-            height: 100%;
-            display: flex; 
-            align-items: center;
-            justify-content: center;
-        }
-
-        #flipbook-container.show-book {
-            opacity: 1;
-            transform: scale(1);
-        }
-
-        /* 音樂播放的啟動畫面 */
-        #start-overlay {
-            position: fixed;
-            inset: 0;
-            display: flex; /* 啟用 Flexbox */
-            flex-direction: column; /* 垂直排列 */
-            align-items: center; /* ★ 讓標題與按鈕完美置中 */
-            justify-content: center;
-            background-color: transparent; /* ★ 移除黑底，讓背景影片重見天日 */
-            z-index: 1000;
-        }
-
-        /* 背景影片的樣式 */
-        #bg-video {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw; /* 確保佔滿視窗寬度 */
-            height: 100vh; /* 確保佔滿視窗高度 */
-            object-fit: cover; /* 關鍵：裁切影片以填滿空間，不留黑邊 */
-            z-index: -2;
-        }
-
-        /* 【新增】半透明遮罩層：讓影片變暗，突顯文字 */
-        #video-overlay {
-            position: absolute;
-            inset: 0;
-            /* 微調漸層遮罩：中間較透明以透出影片，四周較暗以凸顯白字 */
-            background: radial-gradient(circle at center, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.7) 100%);
-            z-index: -1;
-            pointer-events: none;
-        }
-
-        #start-overlay p {
-            font-size: 1.2em;
-            user-select: none;
-            position: relative;
-            z-index: 1;
-        }
-
-        /* 書本主體 */
-        #book {
-            display: none; /* 載入完成前先隱藏 */
-            box-shadow: 0 8px 30px rgba(0,0,0,0.25); 
-        }
-        .page-content, .page img, .page--cover {
-            width: 100%;
-            height: 100%;
-        }
-
-        /* .page 設定 */
-        .page {
-            width: 400px;
-            height: 600px;
-            background-color: #f9f7f3;
-            border: 1px solid #c9c9c9;
-            overflow: hidden;
-            will-change: transform;
-            -webkit-backface-visibility: hidden;
-            backface-visibility: hidden;
-        }
-
-        .page img { object-fit: cover; display: block; }
-
-        .page--cover {
-            background-color: #333;
-        }
-
-        .page-content {
-            width: 100%;
-            height: 100%;
-            position: relative; 
-        }
-        #main-title{
-            font-family: var(--font-serif);
-            font-size: clamp(1.5rem, 4vw, 2.5rem); /* 動態調整大小 */
-            color: #fff;
-            opacity: 1 !important; /* 強制顯示 */
-            z-index: 10;
-            margin-bottom: 1rem;
-        }
-        #poem-content {
-            display: flex;
-            flex-direction: row;
-            justify-content: center;
-            gap: 4vw; /* ★ 調大間距，讓四團文字呼吸感更好 */
-            width: 100%;
-            max-width: 1400px;
-            margin-bottom:1rem; /* 與下方的開始按鈕保持距離 */
-        }
-
-        .poem-line {
-            font-family: var(--font-serif);
-            font-size: 1rem;
-            line-height: 2.2;
-            width: max-content; /* ★ 關鍵：讓寬度根據文字長度自動延展，確保只在 <br> 處斷行 */
-            color: rgba(255, 255, 255, 0.85);
-            text-align: left;
-
-            /* ★★★ 這才是動畫該待的正確位置 (全域) ★★★ */
-            opacity: 0;
-            transform: translateY(15px) scale(0.98);
-            filter: blur(10px);
-            transition: 
-                opacity 1.5s cubic-bezier(0.22, 1, 0.36, 1),
-                filter 1.5s cubic-bezier(0.22, 1, 0.36, 1),
-                transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
-        }
-
-        .poem-line:focus {
-            caret-color: transparent; 
-            outline: none;
-        }
-
-        .poem-line.active {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-            filter: blur(0px);
-        }
-
-        .poem-line .sentence-hover {
-            display: inline-block; /* 讓單行可以擁有獨立的位移變換 */
-            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-            color: rgba(255, 255, 255, 0.7); /* 預設稍微暗一點的半透明白 */
-            cursor: default;
-        }
-
-        .poem-line:hover .sentence-hover {
-            opacity: 0.3;
-            filter: blur(1.5px);
-        }
-
-        /* 互動核心二：但是，被滑鼠「精準指到」的那一句，會清晰亮起、發光並微微浮現 */
-        .poem-line .sentence-hover:hover {
-            opacity: 1;
-            filter: blur(0px);
-            color: #ffffff;
-            text-shadow: 0 0 12px rgba(255, 255, 255, 0.8), 0 0 24px rgba(255, 255, 255, 0.4);
-            transform: translateY(-2px) scale(1.02); /* 微微的彈簧懸浮感 */
-        }
-
-        #interaction-hint-cover {
-            position: absolute;
-            left: 25%; /* 固定在畫面的左側 */
-            top: 50%;
-            transform: translateY(-50%);
-            writing-mode: vertical-rl; /* 改為直書排版，更有實體書扉頁的設計感 */
-            white-space: nowrap;
-            letter-spacing: 0.3em;
-            font-family: var(--font-sans);
-            font-size: 0.9rem;
-            color: rgba(0, 0, 0, 0.4); /* 灰色浮水印質感 */
-            z-index: -1; /* ★ 關鍵：設定為負數，確保翻開書頁時會壓過這行字 */
-            pointer-events: none;
-        }
-
-        #restart-container {
-            position: fixed; 
-            top: 50%;
-            
-            /* 這裡設定按鈕「中心點」距離畫面右邊的距離 */
-            /* 您可以根據白色區塊的大小微調這個 10% */
-            right: 17%; 
-            
-            /* 讓按鈕在垂直方向絕對置中 */
-            transform: translateY(-50%); 
-            
-            /* ★★★ 關鍵修改：強制設定固定寬高 (單位 px) ★★★ */
-            width: 180px;  /* 固定寬度 */
-            height: 180px; /* 固定高度 */
-            
-            /* 讓內部的圖片和文字居中 */
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            
-            z-index: 999; 
-            cursor: pointer;
-            
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s ease-in-out, transform 0.2s;
-            
-            background-color: rgba(255, 255, 255, 0.8); 
-            border-radius: 30px; /* 圓角也可以固定 */
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            
-            /* 確保 padding 不會撐大設定好的寬高 */
-            box-sizing: border-box; 
-        }
-
-        #restart-container.visible {
-            opacity: 1;
-            pointer-events: auto;
-            transition: opacity 0.5s ease-in-out, transform 0.2s;
-        }
-
-        /* 懸停動畫 (只稍微放大，不改變佈局) */
-        #restart-container:hover {
-            transform: translateY(-50%) scale(1.05);
-        }
-
-        #restart-container:active {
-            transform: translateY(-50%) scale(0.95);
-        }
-
-        #restart-icon {
-            /* ★★★ 圖片大小固定 ★★★ */
-            width: 90px !important; 
-            height: 90px !important; /* 高度也固定，避免跑版 */
-            object-fit: contain !important;
-            margin-bottom: 10px;
-        }
-
-        #restart-text {
-            font-family: "微軟正黑體", serif;
-            font-weight: bold;
-            
-            /* ★★★ 文字大小固定為 px，不隨螢幕縮放 ★★★ */
-            font-size: 24px; 
-            
-            color: #303861;
-            margin: 0;
-            white-space: nowrap; /* 強制不換行 */
-        }
-
-        #start-button {
-            /* ★ 新增絕對定位，把按鈕固定在距離底部 12% 的位置 (約往上提了 40~50px) */
-            position: absolute;
-            bottom: 12%; 
-            z-index: 100;
-            
-            font-family: var(--font-sans);
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 12px 32px;
-            border-radius: 100px;
-            color: #fff;
-            font-weight: 500;
-            opacity: 1 !important;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        #start-button:hover {
-            background: rgba(255, 255, 255, 1);
-            color: #000;
-            transform: translateY(-2px) scale(1.02);
-        }
-
-        #start-button:active{
-            transform: translateY(1px) scale(0.96); /* 模擬彈簧下壓 */
-        }
-        
-        
-        /* --- 1. 電腦版：傳統直書與單行發光特效 (修復起始位置) --- */
-        @media screen and (min-width: 1025px) {
-            #reading-zone::-webkit-scrollbar {
-                display: none; 
-            }
-            #reading-zone {
-                -ms-overflow-style: none;  
-                scrollbar-width: none;  
-                
-                width: 100vw;
-                height: 100vh;
-                overflow-x: auto; 
-                overflow-y: hidden; 
-                display: flex;
-                align-items: center;
-                
-                /* ★ 核心修復 1：讓容器的排版方向由右至左，捲軸就會天然在右側 */
-                direction: rtl; 
-                justify-content: flex-start; 
-                cursor: default; 
-            }
-
-            #scroll-content {
-                writing-mode: vertical-rl;
-                text-orientation: mixed;
-                
-                /* ★ 核心修復 2：將內部文字邏輯改回 ltr，防止標點符號或括號在 RTL 下反轉 */
-                direction: ltr; 
-                height: 75vh; 
-                padding: 0 5vw 0 15vw; 
-            }
-
-            .poem-column {
-                display: block; 
-                font-family: var(--font-serif);
-                font-size: 1.35rem;
-                letter-spacing: 0.35em;
-                margin-left: 2rem; 
-                color: rgba(255, 255, 255, 0.25); 
-                filter: blur(2.5px); 
-                transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-                cursor: pointer;
-            }
-
-            .poem-column:hover {
-                color: rgba(255, 255, 255, 1);
-                filter: blur(0px);
-                text-shadow: 0 0 12px rgba(255, 255, 255, 0.8), 0 0 24px rgba(255, 255, 255, 0.4);
-                transform: scale(1.02);
-            }
-
-            .title-column {
-                font-size: 0.95rem; /* 標題作者縮小 */
-                margin-left: 8rem;
-                line-height: 2.2;
-                color: rgba(255,255,255,0.45);
-                filter: none; 
-                cursor: default;
-            }
-
-            .stanza-start {
-                margin-left: 6rem;
-            }
-        }
-
-        /* --- 2. 手機直向 (Portrait)：修復按鈕順序與字體層次 --- */
-        @media screen and (max-width: 1024px) and (orientation: portrait) {
-            #start-overlay {
-                display: flex; 
-                flex-direction: column;
-                align-items: center;
-                justify-content: flex-start;
-                overflow-y: auto; 
-                overflow-x: hidden; 
-                padding-top: 15vh;
-                text-align: center;
-                -webkit-overflow-scrolling: touch; 
-            }
-
-            #bg-video, #video-overlay {
-                position: fixed; 
-                top: 0;
-                left: 0;
-                width: 100vw;
-                height: 100vh;
-                object-fit: cover;
-            }
-            
-            #scroll-content {
-                display: flex;
-                flex-direction: column; 
-                align-items: center;
-                gap: 5rem;
-                width: 100%;
-                margin: 0 auto;
-                writing-mode: horizontal-tb; /* 手機維持橫排捲動 */
-            }
-
-            .poem-column {
-                width: 85vw; 
-                text-align: center;
-                white-space: normal;
-                margin-left: auto; 
-                margin-right: auto;
-                filter: none;
-                transform: none;
-                /* ★ 統一字體與顏色 */
-                font-family: var(--font-serif);
-                font-size: 1.15rem; 
-                line-height: 1.2;
-                color: rgba(255, 255, 255, 0.85); 
-            }
-
-            /* ★ 手機版標題作者專屬：縮小、變暗、與首句拉近 */
-            .title-column {
-                font-size: 0.9rem !important; 
-                color: rgba(255, 255, 255, 0.5) !important; 
-                line-height: 1.8;
-                margin-bottom: -2rem; 
-            }
-
-            /* ★ 核心修復：讓按鈕跟在詩歌最末端 */
-            #start-button {
-                position: relative; /* 取消電腦版的絕對定位 */
-                bottom: auto;
-                margin: 3rem auto 15vh auto; /* 確保在文章末尾並留出底部緩衝 */
-                display: inline-flex !important;
-                flex-shrink: 0; 
-            }
-            
-            #orientation-warning { display: none; }
-            body.book-mode #orientation-warning { display: flex; }
-            body.book-mode #flipbook-container { display: none !important; }
-        }
-
-        /* ==========================================
-           1. 電腦版：傳統直書與單行發光特效
-           ========================================== */
-        @media screen and (min-width: 1025px) {
-            #reading-zone::-webkit-scrollbar { display: none; }
-            #reading-zone {
-                -ms-overflow-style: none;  
-                scrollbar-width: none;  
-                width: 100vw;
-                height: 100vh;
-                overflow-x: auto; 
-                overflow-y: hidden; 
-                display: flex;
-                align-items: center;
-                direction: rtl; 
-                justify-content: flex-start; 
-                cursor: default; 
-            }
-
-            #scroll-content {
-                writing-mode: vertical-rl;
-                text-orientation: mixed;
-                direction: ltr; 
-                height: 75vh; 
-                padding: 0 5vw 0 15vw; 
-            }
-
-            .poem-column {
-                display: block; 
-                font-family: var(--font-serif);
-                font-size: 1.35rem;
-                letter-spacing: 0.35em;
-                /* ★ 電腦版直書核心修正：縮小欄與欄的間距 (行距) */
-                margin-left: 1rem; 
-                color: rgba(255, 255, 255, 0.25); 
-                filter: blur(2.5px); 
-                transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-                cursor: pointer;
-            }
-
-            .poem-column:hover {
-                color: rgba(255, 255, 255, 1);
-                filter: blur(0px);
-                text-shadow: 0 0 12px rgba(255, 255, 255, 0.8), 0 0 24px rgba(255, 255, 255, 0.4);
-                transform: scale(1.02);
-            }
-
-            .title-column {
-                font-size: 0.95rem; 
-                /* ★ 標題與第一段的距離 */
-                margin-left: 5rem;
-                line-height: 2.2;
-                color: rgba(255,255,255,0.45);
-                filter: none; 
-                cursor: default;
-            }
-
-            .stanza-start {
-                /* ★ 段落之間的距離 */
-                margin-left: 3.5rem;
-            }
-        }
-
-        /* ==========================================
-           2. 手機版 (直/橫向統一)：垂直捲動閱讀模式
-           ========================================== */
-        @media screen and (max-width: 1024px) {
-            #start-overlay {
-                display: flex; 
-                flex-direction: column;
-                align-items: center;
-                justify-content: flex-start;
-                overflow-y: auto; 
-                overflow-x: hidden; 
-                padding-top: 15vh;
-                text-align: center;
-                -webkit-overflow-scrolling: touch; 
-            }
-
-            #bg-video, #video-overlay {
-                position: fixed; 
-                top: 0;
-                left: 0;
-                width: 100vw;
-                height: 100vh;
-                object-fit: cover;
-            }
-            
-            #scroll-content {
-                display: flex;
-                flex-direction: column; 
-                align-items: center;
-                /* ★ 手機版橫書核心修正：將每句詩的上下間距大幅縮小 */
-                gap: 0.8rem; 
-                width: 100%;
-                margin: 0 auto;
-                writing-mode: horizontal-tb;
-                height: auto;
-                padding: 0;
-            }
-
-            .poem-column {
-                width: 85vw; 
-                max-width: 600px;
-                text-align: center;
-                white-space: normal;
-                margin: 0; /* 清除不必要的 margin */
-                filter: none;
-                transform: none;
-                font-family: var(--font-serif);
-                font-size: 1.15rem; 
-                /* ★ 內部若有折行，行高收緊為 1.4 */
-                line-height: 1.4; 
-                color: rgba(255, 255, 255, 0.85); 
-            }
-
-            /* ★ 建立段落之間的呼吸空間 */
-            .stanza-start {
-                margin-top: 2.5rem; 
-            }
-
-            .title-column {
-                font-size: 0.9rem !important; 
-                color: rgba(255, 255, 255, 0.5) !important; 
-                line-height: 1.5;
-                margin-bottom: 2rem; 
-            }
-
-            #start-button {
-                position: relative; 
-                bottom: auto;
-                margin: 3rem auto 15vh auto; 
-                display: inline-flex !important;
-                flex-shrink: 0; 
-            }
-        }
-
-        /* ==========================================
-           3. 手機版：針對直向/橫向的狀態切換與警告
-           ========================================== */
-        @media screen and (max-width: 1024px) and (orientation: portrait) {
-            #orientation-warning { display: none; }
-            body.book-mode #orientation-warning { display: flex; }
-            body.book-mode #flipbook-container { display: none !important; }
-        }
-
-        @media screen and (max-width: 1024px) and (orientation: landscape) {
-            #orientation-warning { display: none !important; }
-            body.book-mode #flipbook-container { display: flex !important; }
-        }
-
-        /* 熱點動畫 */
-        @keyframes subtleFloat {
-            0% { transform: translateY(0); }
-            50% { transform: translateY(-3px); }
-            100% { transform: translateY(0); }
-        }
-
-        @keyframes pulseGlow {
-            0% { filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.7)); }
-            50% { filter: drop-shadow(0 0 10px rgba(255, 255, 255, 1)); } 
-            100% { filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.7)); }
-        }
-
-        .page-content [id$="-hotspot"] {
-            cursor: pointer;
-            position: absolute; 
-        }
-
-        .hotspot-icon {
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            background-size: contain; 
-            background-repeat: no-repeat;
-            background-position: center;
-            animation: subtleFloat 3s ease-in-out infinite alternate, pulseGlow 2s ease-out infinite alternate;
-            pointer-events: none; 
-            filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
-            transition: transform 0.2s ease-out, filter 0.1s;
-        }
-        
-        .airplane-left-icon {
-            width: 500%;
-            height: 500%;
-            top: -240%;
-            left: -150%;
-            background-image: url('https://raw.githubusercontent.com/sherookie/Book/main/airplane_icon_left.png'); 
-        }
-        .airplane-right-icon {
-            width: 500%;
-            height: 500%;
-            top: -240%;
-            left: -257%;
-            background-image: url('https://raw.githubusercontent.com/sherookie/Book/main/airplane_icon_right.png'); 
-        }
-        
-        .book-icon {
-            width: 310%;
-            height: 310%;
-            top: -148%;
-            left: -28%;
-            background-image: url('https://raw.githubusercontent.com/sherookie/Book/main/book_icon.png');
-        }
-
-        .train-left-icon {
-            width: 500%;
-            height: 500%;
-            top: -240%;
-            left: -148%;
-            background-image: url('https://raw.githubusercontent.com/sherookie/Book/main/train_icon_left.png');
-        }
-        .train-right-icon {
-            width: 500%;
-            height: 500%;
-            top: -240%;
-            left: -255%;
-            background-image: url('https://raw.githubusercontent.com/sherookie/Book/main/train_icon_right.png');
-        }
-
-        .phone-icon {
-            width: 1600%;
-            height: 1600%;
-            top: -709%;
-            left: -1276%;
-            background-image: url('https://raw.githubusercontent.com/sherookie/Book/main/phone_icon.png');
-        }
-        
-        .page-content [id$="-hotspot"]:active .hotspot-icon {
-            transform: scale(0.95); 
-            filter: drop-shadow(0 0 15px rgba(255, 255, 255, 1)); 
-        }
-
-        #text-fab {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            width: 50px;
-            height: 50px;
-            background-color: #303861;
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5em;
-            font-weight: bold;
-            cursor: pointer;
-            z-index: 90;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
-            transition: transform 0.3s;
-            caret-color: transparent;
-            padding-bottom: 2px;
-            box-sizing: border-box; 
-        }
-        
-        #airplane-hotspot {
-            position: absolute;
-            left: 59%; 
-            top: 45%;   
-            width: 40%;   
-            height:54%; 
-            cursor: pointer;
-        }
-
-        #airplane2-hotspot {
-            position: absolute;
-            right: 59%; 
-            top: 45%;   
-            width: 40%;   
-            height:54%; 
-            cursor: pointer; 
-            user-select: none;
-        }
-
-        #book-hotspot {
-            position: absolute;
-            right: 20%; 
-            top: 46%;   
-            width:70%;   
-            height:45%; 
-            cursor: pointer; 
-            user-select: none;
-        }
-
-        #train-hotspot {
-            position: absolute;
-            left: 59%; 
-            top: 45%;   
-            width: 40%;   
-            height:54%; 
-            cursor: pointer; 
-            user-select: none;
-        }
-
-        #train2-hotspot {
-            position: absolute;
-            right: 59%; 
-            top: 45%;   
-            width: 40%;   
-            height:54%; 
-            cursor: pointer; 
-            user-select: none;
-        }
-
-        #phone-hotspot {
-            position: absolute;
-            right: 30%; 
-            top: 40%;   
-            width: 10%;   
-            height:10%; 
-            cursor: pointer; 
-            user-select: none;
-        }
-
-        #poem-sidebar{
-            position: fixed;
-            top: 0;
-            right: 0; /* 從右側滑出 */
-            width: 350px; /* 側邊欄寬度 */
-            max-width: 80%; /* 在手機上最大寬度 */
-            height: 100%;
-            background-color: #f9f7f3; /* 使用與書本頁面相同的背景色 */
-            box-shadow: -5px 0 15px rgba(0,0,0,0.2); /* 在左側添加陰影 */
-            z-index: 1001; /* 確保在 FAB 和書本之上 */
-            transform: translateX(100%); 
-            transition: transform 0.4s ease-in-out; /* 滑動動畫 */
-            overflow-y: auto; /* 內容過多時允許滾動 */
-            box-sizing: border-box;
-            padding: 20px;
-            padding-top: 70px; /* 為關閉按鈕留出空間 */
-            -webkit-overflow-scrolling: touch; 
-            touch-action: pan-y; 
-        }
-
-        #poem-sidebar.visible {
-            transform: translateX(0); /* 滑動到畫面內 */
-        }
-
-        #close-sidebar-btn{
-            position: absolute;
-            top: 15px;
-            right: 15px; 
-            font-size: 2.5em;
-            font-weight: 300;
-            color: #333;
-            background: none;
-            border: none;
-            cursor: pointer;
-            line-height: 1;
-            padding: 0;
-            caret-color: transparent;
-        }
-        #sidebar-content{
-            color: #333;
-            font-family: '微軟正黑體',serif;
-        }
-        #sidebar-title{
-            font-size: 1.5em;
-            font-weight: bold;
-            line-height: 1.4;
-            margin-top: 0;
-            color: #303861;
-        }
-        #sidebar-content p {
-            font-size: 1.1em;
-            line-height: 1.2;
-            margin-top: 0;
-            margin-bottom: 1.5em;
-            white-space: pre-line; 
-        }
-
-        /* --- 1. 強制隱藏手機瀏覽器的影片原生播放按鈕 --- */
-        video::-webkit-media-controls {
-            display: none !important;
-        }
-        video::-webkit-media-controls-enclosure {
-            display: none !important;
-        }
-
-        /* --- 2. 翻轉手機提示遮罩 (Orientation Warning) --- */
-        #orientation-warning {
-            display: none; /* 預設隱藏 */
-            position: fixed;
-            inset: 0;
-            background-color: #111; /* 深色沉浸感背景 */
-            color: #fff;
-            z-index: 99999; /* 確保在最上層 */
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            font-family: var(--font-sans);
-            backdrop-filter: blur(10px);
-        }
-
-        /* 手機動態翻轉圖示的微動畫 */
-        .rotate-icon {
-            width: 60px;
-            height: 60px;
-            margin-bottom: 24px;
-            stroke: rgba(255, 255, 255, 0.8);
-            animation: rotatePhone 2.5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-        }
-
-        @keyframes rotatePhone {
-            0% { transform: rotate(0deg); }
-            40% { transform: rotate(-90deg); } /* 轉向橫的 */
-            60% { transform: rotate(-90deg); } /* 停頓一下 */
-            100% { transform: rotate(0deg); }  /* 轉回來循環 */
-        }
-
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>空襲</title>
+
+<link rel="icon" href="https://raw.githubusercontent.com/sherookie/Book/main/plane.png" type="image/png">
+
+<!-- 字型：Noto Serif TC + EB Garamond + Cormorant Garamond -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500;700;900&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.min.js"></script>
+
+<style>
+/* =========================================================
+   DESIGN TOKENS
+   ========================================================= */
+:root {
+  /* Color */
+  --bg-deep:     #0a0908;
+  --bg-dim:      #14110f;
+  --paper:       #f4f1ea;
+  --paper-soft:  rgba(244, 241, 234, 0.72);
+  --paper-faint: rgba(244, 241, 234, 0.32);
+  --paper-ghost: rgba(244, 241, 234, 0.12);
+  --accent:      #8b2c2c;
+  --accent-soft: #c45656;
+
+  /* Type */
+  --font-zh:   "Noto Serif TC", "Songti TC", "PMingLiU", serif;
+  --font-en:   "EB Garamond", "Cormorant Garamond", Georgia, serif;
+  --font-meta: "Cormorant Garamond", "EB Garamond", serif;
+  --font-sans: "Inter", system-ui, "微軟正黑體", sans-serif;
+
+  /* Motion */
+  --ease:      cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background-color: var(--bg-deep);
+  color: var(--paper);
+  font-family: var(--font-zh);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* =========================================================
+   GRAIN OVERLAY — 全局紙紋
+   ========================================================= */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* =========================================================
+   START OVERLAY — 起始畫面（新版儀式感）
+   ========================================================= */
+#start-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 影片背景 */
+#bg-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  z-index: -2;
+}
+
+/* 影片漸層遮罩 — 加深以突顯文字 */
+#video-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 50%, rgba(10,9,8,0.45) 0%, rgba(10,9,8,0.85) 100%),
+    radial-gradient(circle at 30% 70%, rgba(139, 44, 44, 0.06) 0%, transparent 40%);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.opening-stage {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---- 書名 ---- */
+.book-title {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 5;
+  pointer-events: none;
+  transition:
+    opacity 1.2s var(--ease),
+    transform 1.4s var(--ease),
+    filter 1.2s var(--ease);
+}
+.book-title.has-left {
+  opacity: 0;
+  transform: translate(-50%, calc(-50% - 40px));
+  filter: blur(8px);
+}
+.title-zh {
+  display: flex;
+  justify-content: center;
+  line-height: 1;
+}
+
+.title-zh .char {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(20px) scale(0.96);
+  filter: blur(12px);
+  transition:
+    opacity 1.2s var(--ease),
+    transform 1.4s var(--ease),
+    filter 1.4s var(--ease);
+}
+.title-zh .char.in {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+}
+
+/* === 新增：針對 Logo 圖片的響應式大小控制 === */
+.title-zh .char img {
+  width: 280px;      /* 設定一個明確的基礎寬度 */
+  max-width: 60vw;   /* 確保在手機螢幕上最多只佔 60% 寬，不會破版 */
+  height: auto;      /* 自動維持圖片原本的完美比例 */
+  display: block;
+  margin: 0 auto;
+}
+
+.title-en {
+  margin-top: 1.4rem;
+  font-family: var(--font-en);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(0.95rem, 1.4vw, 1.15rem);
+  letter-spacing: 0.5em;
+  text-indent: 0.5em;
+  color: var(--paper-faint);
+  text-transform: lowercase;
+  display: inline-block;
+  padding: 0 1em;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 1.4s var(--ease) 0.6s, transform 1.4s var(--ease) 0.6s;
+}
+.title-en.in { opacity: 1; transform: translateY(0); }
+
+.title-line {
+  width: 0;
+  height: 1px;
+  margin: 1.2rem auto 0;
+  background: var(--paper-faint);
+  transition: width 1.6s var(--ease) 1.1s;
+}
+.title-line.in { width: 64px; }
+
+/* ---- 詩文閱讀區 ---- */
+/* ---- 詩文閱讀區 (全域統一為橫排、垂直滾動) ---- */
+.reading-zone {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  /* 【關鍵 1】：改為從頂部開始排，這樣就能徹底解決「滑不到最上面」的 bug */
+  align-items: flex-start; 
+  justify-content: center;
+  overflow-x: hidden;
+  overflow-y: auto;
+  direction: ltr;
+  opacity: 0;
+  transition: opacity 1s var(--ease);
+}
+.reading-zone::-webkit-scrollbar { display: none; }
+.reading-zone.in { opacity: 1; }
+
+.scroll-content {
+  writing-mode: horizontal-tb;
+  flex-direction: column;
+  height: auto;
+  /* 【關鍵 2】：上留 25vh、左右 5vw、下留 40vh。
+     25vh 會讓第一句剛好落在視覺舒服的偏中間，往上滑也不會覺得留白太多。
+     下方的 40vh 則確保最後一句可以被順利滾動到畫面中間閱讀。 */
+  padding: 25vh 5vw 40vh 5vw; 
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+/* ---- 詩句基本樣式 ---- */
+.poem-column {
+  display: block;
+  position: relative;
+  font-family: var(--font-zh);
+  font-size: 1.3rem;
+  letter-spacing: 0.32em;
+  line-height: 2.2;
+  margin: 0.4rem 0; /* 改為上下間距 */
+  color: var(--paper-faint);
+  filter: blur(2px);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(20px); /* 改為由下往上浮現 */
+  transition-property: opacity, transform, color, filter, text-shadow;
+  transition-duration: 1.2s, 1.2s, 0.5s, 0.5s, 0.5s;
+  transition-timing-function: var(--ease);
+  text-align: center; /* 文字置中 */
+}
+.poem-column.in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* hover：該行最亮 */
+.poem-column.in:hover {
+  color: var(--paper);
+  filter: blur(0);
+  text-shadow: 0 0 14px rgba(244, 241, 234, 0.35);
+  transform: translateY(0) scale(1.02);
+}
+/* hover 副作用：所在整段微微浮現 */
+.poem-column.in.stanza-active {
+  color: var(--paper-soft);
+  filter: blur(0.6px);
+}
+
+/* 標題作者欄 */
+.poem-column.title-column {
+  font-size: 1.1rem;
+  margin-left: 0;
+  margin-bottom: 2.5rem; /* 改為下邊距 */
+  line-height: 2;
+  color: var(--paper-soft);
+  filter: none;
+  cursor: default;
+  letter-spacing: 0.4em;
+}
+.poem-column.title-column:hover {
+  transform: translateY(0);
+  text-shadow: none;
+  color: var(--paper-soft);
+}
+.poem-column.title-column .author {
+  display: block;
+  margin-top: 1em;
+  font-size: 0.85rem;
+  color: var(--paper-faint);
+  font-style: italic;
+}
+
+/* 段落起點 + 編號 i / ii / iii / iv */
+.poem-column.stanza-start { margin-top: 2.5rem; margin-left: 0; }
+.poem-column.stanza-start::before {
+  content: attr(data-marker);
+  display: block;
+  font-family: var(--font-meta);
+  font-style: italic;
+  font-size: 0.78rem;
+  color: var(--paper-ghost);
+  letter-spacing: 0.15em;
+  margin-bottom: 0.8em;
+  writing-mode: horizontal-tb;
+  text-align: center;
+}
+
+/* 「空襲」keyword */
+.kw {
+  color: var(--accent-soft);
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  transition: color 0.4s var(--ease), text-shadow 0.4s var(--ease);
+}
+.poem-column.in:hover .kw {
+  color: var(--accent);
+  text-shadow: 0 0 10px rgba(196, 86, 86, 0.5);
+}
+
+/* Refrain 重複句 */
+.poem-column.refrain {
+  letter-spacing: 0.45em;
+  color: var(--paper-soft);
+  filter: blur(1.5px);
+}
+
+/* 結尾句 */
+.poem-column.finale {
+  letter-spacing: 0.4em;
+  color: rgba(244, 241, 234, 0.55);
+  filter: blur(1px);
+}
+
+/* 離場：點擊進入後反向熄滅 */
+.poem-column.exiting {
+  opacity: 0 !important;
+  filter: blur(8px) !important;
+  transform: translateY(-15px) !important; /* 改為往上退出 */
+  transition: all 0.9s var(--ease) !important;
+}
+
+/* ---- 進入邀請：兩階段 (subtle → full) ---- */
+.invitation {
+  position: absolute;
+  bottom: 8vh;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 1rem 2rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.6s var(--ease), transform 0.4s var(--ease);
+}
+.invitation.subtle { opacity: 0.4; pointer-events: auto; }
+.invitation.full { opacity: 1; }
+
+.invitation-text {
+  font-family: var(--font-zh);
+  font-size: 0.95rem;
+  letter-spacing: 0.6em;
+  text-indent: 0.6em;
+  color: var(--paper-soft);
+  transition: color 0.5s var(--ease), letter-spacing 0.6s var(--ease);
+}
+.invitation.subtle .invitation-text { color: var(--paper-faint); }
+
+.invitation-line {
+  display: block;
+  width: 32px;
+  height: 1px;
+  background: var(--paper-faint);
+  position: relative;
+  overflow: hidden;
+  transition: background 0.5s var(--ease);
+}
+.invitation-line::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--paper);
+  transform: translateX(-110%);
+  animation: breathe 3.2s var(--ease-soft) infinite;
+}
+@keyframes breathe {
+  0%   { transform: translateX(-110%); }
+  50%  { transform: translateX(0); }
+  100% { transform: translateX(110%); }
+}
+
+.invitation:hover .invitation-text {
+  color: var(--paper);
+  letter-spacing: 0.7em;
+  text-indent: 0.7em;
+}
+.invitation:hover .invitation-line { background: var(--paper-soft); }
+.invitation:focus-visible { outline: none; }
+.invitation:focus-visible .invitation-text { color: var(--paper); }
+.invitation:active { transform: translateX(-50%) translateY(2px); }
+
+/* Skip 提示 */
+.skip-hint {
+  position: fixed;
+  bottom: 2vh;
+  right: 2.5vw;
+  font-family: var(--font-meta);
+  font-style: italic;
+  font-size: 0.78rem;
+  color: var(--paper-ghost);
+  letter-spacing: 0.18em;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.8s var(--ease);
+  z-index: 50;
+}
+.skip-hint.in { opacity: 0.7; }
+
+/* =========================================================
+   FLIPBOOK CONTAINER (保留原樣)
+   ========================================================= */
+#flipbook-container {
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#flipbook-container.show-book {
+  opacity: 1;
+  transform: scale(1);
+}
+
+#book {
+  display: none;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+}
+.page-content, .page img, .page--cover {
+  width: 100%;
+  height: 100%;
+}
+.page {
+  width: 400px;
+  height: 600px;
+  background-color: #f9f7f3;
+  border: 1px solid #c9c9c9;
+  overflow: hidden;
+  will-change: transform;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+.page img { object-fit: cover; display: block; }
+.page--cover { background-color: #333; }
+.page-content {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+/* 書側互動小提示（保留） */
+#interaction-hint-cover {
+  position: absolute;
+  left: 25%;
+  top: 50%;
+  transform: translateY(-50%);
+  writing-mode: vertical-rl;
+  white-space: nowrap;
+  letter-spacing: 0.3em;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  color: rgba(0, 0, 0, 0.4);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* =========================================================
+   HOTSPOTS (保留全部)
+   ========================================================= */
+@keyframes subtleFloat {
+  0%   { transform: translateY(0); }
+  50%  { transform: translateY(-3px); }
+  100% { transform: translateY(0); }
+}
+@keyframes pulseGlow {
+  0%   { filter: drop-shadow(0 0 4px rgba(255,255,255,0.7)); }
+  50%  { filter: drop-shadow(0 0 10px rgba(255,255,255,1)); }
+  100% { filter: drop-shadow(0 0 4px rgba(255,255,255,0.7)); }
+}
+.page-content [id$="-hotspot"] {
+  cursor: pointer;
+  position: absolute;
+}
+.hotspot-icon {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  animation: subtleFloat 3s ease-in-out infinite alternate, pulseGlow 2s ease-out infinite alternate;
+  pointer-events: none;
+  filter: drop-shadow(0 0 5px rgba(255,255,255,0.5));
+  transition: transform 0.2s ease-out, filter 0.1s;
+}
+.airplane-left-icon  { width: 500%; height: 500%; top: -240%; left: -150%;  background-image: url('https://raw.githubusercontent.com/sherookie/Book/main/airplane_icon_left.png'); }
+.airplane-right-icon { width: 500%; height: 500%; top: -240%; left: -257%;  background-image: url('https://raw.githubusercontent.com/sherookie/Book/main/airplane_icon_right.png'); }
+.book-icon           { width: 310%; height: 310%; top: -148%; left: -28%;   background-image: url('https://raw.githubusercontent.com/sherookie/Book/main/book_icon.png'); }
+.train-left-icon     { width: 500%; height: 500%; top: -240%; left: -148%;  background-image: url('https://raw.githubusercontent.com/sherookie/Book/main/train_icon_left.png'); }
+.train-right-icon    { width: 500%; height: 500%; top: -240%; left: -255%;  background-image: url('https://raw.githubusercontent.com/sherookie/Book/main/train_icon_right.png'); }
+.phone-icon          { width: 1600%; height: 1600%; top: -709%; left: -1276%; background-image: url('https://raw.githubusercontent.com/sherookie/Book/main/phone_icon.png'); }
+
+.page-content [id$="-hotspot"]:active .hotspot-icon {
+  transform: scale(0.95);
+  filter: drop-shadow(0 0 15px rgba(255,255,255,1));
+}
+
+/* Hotspot 位置 */
+#airplane-hotspot  { position: absolute; left:  59%; top: 45%; width: 40%; height: 54%; cursor: pointer; }
+#airplane2-hotspot { position: absolute; right: 59%; top: 45%; width: 40%; height: 54%; cursor: pointer; user-select: none; }
+#book-hotspot      { position: absolute; right: 20%; top: 46%; width: 70%; height: 45%; cursor: pointer; user-select: none; }
+#train-hotspot     { position: absolute; left:  59%; top: 45%; width: 40%; height: 54%; cursor: pointer; user-select: none; }
+#train2-hotspot    { position: absolute; right: 59%; top: 45%; width: 40%; height: 54%; cursor: pointer; user-select: none; }
+#phone-hotspot     { position: absolute; right: 30%; top: 40%; width: 10%; height: 10%; cursor: pointer; user-select: none; }
+
+/* 隱藏手機原生影片控制 */
+video::-webkit-media-controls,
+video::-webkit-media-controls-enclosure {
+  display: none !important;
+}
+
+/* =========================================================
+   ECHO OVERLAY — 封底迴響
+   ========================================================= */
+#echo-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 9, 8, 0.92);
+  backdrop-filter: blur(24px) saturate(120%);
+  -webkit-backdrop-filter: blur(24px) saturate(120%);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.8s var(--ease);
+}
+#echo-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.echo-stage {
+  position: relative;
+  width: 100%;
+  max-width: 920px;
+  padding: 0 6vw;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3.5rem;
+}
+
+.echo-line {
+  width: 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--paper-faint), transparent);
+  transition: width 2s var(--ease);
+}
+.echo-line.in { width: 280px; }
+
+.echo-text-wrap {
+  font-family: var(--font-zh);
+  font-size: clamp(1.4rem, 3.2vw, 2.4rem);
+  font-weight: 400;
+  letter-spacing: 0.35em;
+  text-indent: 0.35em;
+  line-height: 1.6;
+  color: var(--paper);
+  min-height: 1.6em;
+  position: relative;
+}
+.echo-text { display: inline; }
+.echo-text .ch {
+  opacity: 0;
+  display: inline-block;
+  transform: translateY(8px);
+  filter: blur(6px);
+  transition: opacity 0.6s var(--ease), transform 0.6s var(--ease), filter 0.6s var(--ease);
+}
+.echo-text .ch.in {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+.echo-text .ch.accent { color: var(--accent-soft); }
+
+.echo-cursor {
+  display: inline-block;
+  width: 1px;
+  height: 1.1em;
+  vertical-align: -0.18em;
+  background: var(--paper);
+  margin-left: 0.2em;
+  animation: cursorBlink 1.05s steps(2) infinite;
+  opacity: 0;
+}
+.echo-cursor.in   { opacity: 1; }
+.echo-cursor.gone { display: none; }
+@keyframes cursorBlink {
+  0%, 49%   { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.echo-meta {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 1.2s var(--ease), transform 1.2s var(--ease);
+  font-family: var(--font-meta);
+  font-style: italic;
+  color: var(--paper-faint);
+  font-size: 1rem;
+  letter-spacing: 0.18em;
+}
+.echo-meta.in { opacity: 1; transform: translateY(0); }
+
+.echo-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.6rem;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 1.2s var(--ease) 0.3s, transform 1.2s var(--ease) 0.3s;
+}
+.echo-actions.in { opacity: 1; transform: translateY(0); }
+
+.echo-btn {
+  font-family: var(--font-zh);
+  font-size: 0.95rem;
+  letter-spacing: 0.4em;
+  text-indent: 0.4em;
+  background: transparent;
+  border: none;
+  color: var(--paper-soft);
+  padding: 0.6em 0.4em;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.3s var(--ease);
+}
+.echo-btn::after {
+  content: "";
+  position: absolute;
+  left: 0.4em;
+  right: 0.8em;
+  bottom: 0.2em;
+  height: 1px;
+  background: var(--paper);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.5s var(--ease);
+}
+.echo-btn:hover { color: var(--paper); }
+.echo-btn:hover::after { transform: scaleX(1); }
+.echo-btn:focus-visible { outline: none; color: var(--paper); }
+.echo-btn:focus-visible::after { transform: scaleX(1); }
+.echo-divider { color: var(--paper-ghost); font-family: var(--font-meta); }
+
+/* =========================================================
+   ORIENTATION WARNING (保留)
+   ========================================================= */
+#orientation-warning {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background-color: #111;
+  color: #fff;
+  z-index: 99999;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-family: var(--font-sans);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.rotate-icon {
+  width: 60px;
+  height: 60px;
+  margin-bottom: 24px;
+  stroke: rgba(255,255,255,0.8);
+  animation: rotatePhone 2.5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes rotatePhone {
+  0%   { transform: rotate(0deg); }
+  40%  { transform: rotate(-90deg); }
+  60%  { transform: rotate(-90deg); }
+  100% { transform: rotate(0deg); }
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media screen and (max-width: 1024px) and (orientation: portrait) {
+  /* 起始畫面：詩改成橫排垂直滾動 */
+  .reading-zone {
+    overflow-x: hidden;
+    overflow-y: auto;
+    direction: ltr;
+    align-items: flex-start;
+    padding-top: 22vh;
+    padding-bottom: 22vh;
+    -webkit-overflow-scrolling: touch;
+  }
+  .scroll-content {
+    writing-mode: horizontal-tb;
+    flex-direction: column;
+    height: auto;
+    padding: 12vh 8vw;
+    align-items: center;
+    width: 100%;
+  }
+  .poem-column {
+    font-size: 1.05rem;
+    line-height: 1.9;
+    letter-spacing: 0.18em;
+    margin: 0;
+    text-align: center;
+    transform: translateY(15px);
+    filter: none;
+    color: var(--paper-soft);
+  }
+  .poem-column.in { transform: translateY(0); }
+  .poem-column.in:hover { transform: translateY(0); }
+  .poem-column.title-column {
+    font-size: 0.85rem;
+    margin-bottom: 1.5rem;
+    color: var(--paper-faint);
+  }
+  .poem-column.stanza-start { margin-top: 1.6rem; }
+  .title-zh { letter-spacing: 0.3em; text-indent: 0.3em; }
+  .title-line.in { width: 48px; }
+  .poem-column.stanza-start::before { margin-bottom: 0.4em; text-align: center; }
+  .poem-column.refrain { letter-spacing: 0.3em; }
+  .poem-column.finale  { letter-spacing: 0.25em; }
+ 
+  /* 手機按鈕：fixed bottom + backdrop blur，不擋詩 */
+  .invitation {
+    position: fixed;
+    bottom: 4vh;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10, 9, 8, 0.55);
+    backdrop-filter: blur(24px) saturate(140%);
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+    padding: 12px 28px;
+    border-radius: 100px;
+    border: 1px solid var(--paper-ghost);
+    flex-direction: row;
+    gap: 0.7rem;
+  }
+  .invitation:hover { transform: translateX(-50%) translateY(-2px); }
+  .invitation:active { transform: translateX(-50%) translateY(1px) scale(0.97); }
+  .skip-hint { font-size: 0.7rem; bottom: 1.2vh; right: 4vw; }
+
+  #bg-video, #video-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+  }
+
+  /* book-mode 下：portrait 顯示翻轉提示，隱藏書本 */
+  body.book-mode #orientation-warning { display: flex; }
+  body.book-mode #flipbook-container  { display: none !important; }
+}
+
+@media screen and (max-width: 1024px) and (orientation: landscape) {
+  #orientation-warning { display: none !important; }
+  body.book-mode #flipbook-container { display: flex !important; }
+}
+</style>
 </head>
 
 <body>
 
-    
+<!-- 紙紋疊層 -->
+<div class="grain"></div>
 
-    <audio id="background-music" src="https://github.com/sherookie/Book/raw/refs/heads/main/BackgroundMusic.mp3" loop></audio>
-    <audio id="airplaneSound" preload="auto"><source src="https://github.com/sherookie/Book/raw/refs/heads/main/Airplane.mp3" type="audio/mpeg"></audio>
-    <audio id="bookSound" preload="auto"><source src="https://github.com/sherookie/Book/raw/refs/heads/main/Paper.mp3" type="audio/mpeg"></audio>
-    <audio id="trainSound" preload="auto"><source src="https://github.com/sherookie/Book/raw/refs/heads/main/Train.mp3" type="audio/mpeg"></audio>
-    <audio id="phoneSound" preload="auto"><source src="https://github.com/sherookie/Book/raw/refs/heads/main/Phone.mp3" type="audio/mpeg"></audio>
+<!-- 音檔（保留） -->
+<audio id="background-music" src="https://github.com/sherookie/Book/raw/refs/heads/main/BackgroundMusic.mp3" loop></audio>
+<audio id="airplaneSound" preload="auto"><source src="https://github.com/sherookie/Book/raw/refs/heads/main/Airplane.mp3" type="audio/mpeg"></audio>
+<audio id="bookSound" preload="auto"><source src="https://github.com/sherookie/Book/raw/refs/heads/main/Paper.mp3" type="audio/mpeg"></audio>
+<audio id="trainSound" preload="auto"><source src="https://github.com/sherookie/Book/raw/refs/heads/main/Train.mp3" type="audio/mpeg"></audio>
+<audio id="phoneSound" preload="auto"><source src="https://github.com/sherookie/Book/raw/refs/heads/main/Phone.mp3" type="audio/mpeg"></audio>
 
-    <div id="start-overlay">
-        
-        <video id="bg-video" autoplay loop muted playsinline webkit-playsinline>
-            <source src="https://raw.githubusercontent.com/sherookie/Book/main/background.mp4" type="video/mp4">
-        </video>
-        
-        <div id="video-overlay"></div>
+<!-- ============== 起始畫面 (新版儀式感) ============== -->
+<div id="start-overlay">
 
-       <div id="reading-zone">
-        <div id="scroll-content" class="poem-container">
-            <div class="poem-column title-column">
-                空襲<br>鯨向海
-            </div>
-            
-            <div class="poem-column">春天了</div>
-            <div class="poem-column">被同一種光線籠罩</div>
-            <div class="poem-column">沒有去過的駕駛艙</div>
-            <div class="poem-column">在隱隱發動著</div>
-            <div class="poem-column">螺旋槳上 你的喜樂哀愁</div>
-            <div class="poem-column">必然累壞了</div>
-            <div class="poem-column">而這是戰爭 這又是戰爭</div>
-            
-            <div class="poem-column stanza-start">試著施展輕功往上飛</div>
-            <div class="poem-column">會突然掉下來變成空襲</div>
-            <div class="poem-column">什麼曾緊握在手中</div>
-            <div class="poem-column">拋擲出去就變成空襲</div>
-            <div class="poem-column">多少次</div>
-            <div class="poem-column">人生必勝的光輝時刻</div>
-            <div class="poem-column">我投降了</div>
-            
-            <div class="poem-column stanza-start">掀開微涼的馬桶蓋</div>
-            <div class="poem-column">忍不住還是坐下去</div>
-            <div class="poem-column">對牠們全面空襲</div>
-            <div class="poem-column">在優雅而反光的咖啡窗玻璃</div>
-            <div class="poem-column">在某節睡夢中逝去的車廂裡</div>
-            <div class="poem-column">我以為自己可以永遠</div>
-            <div class="poem-column">安於這些</div>
-            
-            <div class="poem-column stanza-start">胸前種出一片防風林</div>
-            <div class="poem-column">不讓那些暗湧靠近</div>
-            <div class="poem-column">累壞了</div>
-            <div class="poem-column">這是戰爭 豈料這又是戰爭</div>
-            <div class="poem-column">眼淚碎了又滲 擦了又滴</div>
-            <div class="poem-column">不斷對舊日的理想空襲</div>
+  <video id="bg-video" autoplay loop muted playsinline webkit-playsinline>
+    <source src="https://raw.githubusercontent.com/sherookie/Book/main/background.mp4" type="video/mp4">
+  </video>
+  <div id="video-overlay"></div>
+
+  <div class="opening-stage">
+
+    <!-- 書名（先建立，再退場讓位給詩） -->
+    <div class="book-title" id="bookTitle">
+      <h1 class="title-zh" aria-label="空襲">
+        <span class="char"><img src="https://raw.githubusercontent.com/sherookie/Book/main/Logo.png" alt="Logo"></span>
+      </h1>
+      <div class="title-line"></div>
+      <div class="title-en">Airstrike</div>
+    </div>
+
+    <!-- 詩文閱讀區 -->
+    <div class="reading-zone" id="readingZone">
+      <div class="scroll-content">
+        <div class="poem-column title-column">
+          空襲
+          <span class="author">— 鯨向海</span>
         </div>
-    </div>
-        
-        
 
-        <button id="start-button" style="display: block;opacity: 0;">前往繪本</button>     
-    </div>
+        <!-- 第一節 -->
+        <div class="poem-column stanza-start stanza-1" data-marker="i">春天了</div>
+        <div class="poem-column stanza-1">被同一種光線籠罩</div>
+        <div class="poem-column stanza-1">沒有去過的駕駛艙</div>
+        <div class="poem-column stanza-1">在隱隱發動著</div>
+        <div class="poem-column stanza-1">螺旋槳上 你的喜樂哀愁</div>
+        <div class="poem-column stanza-1">必然累壞了</div>
+        <div class="poem-column stanza-1 refrain">而這是戰爭 這又是戰爭</div>
 
-    <div id="orientation-warning">
-        <svg class="rotate-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
-            <line x1="12" y1="18" x2="12.01" y2="18"></line>
-        </svg>
-        <p style="font-size: 1.2rem; letter-spacing: 0.15em; font-weight: 300;">請翻轉手機<br>
-            <span style="font-size: 0.85rem; color: rgba(255,255,255,0.5); margin-top: 12px; display: inline-block; letter-spacing: 0.05em;">以橫向模式獲得最佳互動體驗</span>
-        </p>
-    </div>
+        <!-- 第二節 -->
+        <div class="poem-column stanza-start stanza-2" data-marker="ii">試著施展輕功往上飛</div>
+        <div class="poem-column stanza-2">會突然掉下來變成<span class="kw">空襲</span></div>
+        <div class="poem-column stanza-2">什麼曾緊握在手中</div>
+        <div class="poem-column stanza-2">拋擲出去就變成<span class="kw">空襲</span></div>
+        <div class="poem-column stanza-2">多少次</div>
+        <div class="poem-column stanza-2">人生必勝的光輝時刻</div>
+        <div class="poem-column stanza-2">我投降了</div>
 
-    <div id="text-fab" style="display: none;" title="點擊切換詩原文">文</div>
-    
-    <div id="poem-sidebar">
-        <button id="close-sidebar-btn">&times;</button>
-        <div id="sidebar-content">
-            <h2 id="sidebar-title">《A夢》空襲 鯨向海</h2>
-            <p>
-                春天了<br>
-                被同一種光線籠罩<br>
-                沒有去過的駕駛艙<br>
-                在隱隱發動著<br>
-                螺旋槳上，你的喜樂哀愁<br>
-                必然累壞了<br>
-                而這是戰爭，這又是戰爭
-            </p>
-            <p>
-                試著施展輕功往上飛<br>
-                會突然掉下來變成空襲<br>
-                什麼曾緊握在手中<br>
-                拋擲出去就變成空襲<br>
-                多少次<br>
-                人生必勝的光輝時刻<br>
-                我投降了
-            </p>
-            <p>
-                掀開微涼的馬桶蓋<br>
-                忍不住還是坐下去<br>
-                對牠們全面空襲<br>
-                在優雅而反光的咖啡窗玻璃<br>
-                在某節睡夢中逝去的車廂裡<br>
-                我以為自己可以永遠<br>
-                安於這些
-            </p>
-            <p>
-                胸前種出一片防風林<br>
-                不讓那些暗湧靠近<br>
-                累壞了<br>
-                這是戰爭，豈料這又是戰爭<br>
-                眼淚碎了又滲，擦了又滴<br>
-                不斷對舊日的理想空襲
-            </p>
-        </div>
+        <!-- 第三節 -->
+        <div class="poem-column stanza-start stanza-3" data-marker="iii">掀開微涼的馬桶蓋</div>
+        <div class="poem-column stanza-3">忍不住還是坐下去</div>
+        <div class="poem-column stanza-3">對牠們全面<span class="kw">空襲</span></div>
+        <div class="poem-column stanza-3">在優雅而反光的咖啡窗玻璃</div>
+        <div class="poem-column stanza-3">在某節睡夢中逝去的車廂裡</div>
+        <div class="poem-column stanza-3">我以為自己可以永遠</div>
+        <div class="poem-column stanza-3">安於這些</div>
+
+        <!-- 第四節 -->
+        <div class="poem-column stanza-start stanza-4" data-marker="iv">胸前種出一片防風林</div>
+        <div class="poem-column stanza-4">不讓那些暗湧靠近</div>
+        <div class="poem-column stanza-4">累壞了</div>
+        <div class="poem-column stanza-4 refrain">這是戰爭 豈料這又是戰爭</div>
+        <div class="poem-column stanza-4">眼淚碎了又滲 擦了又滴</div>
+        <div class="poem-column stanza-4 finale">不斷對舊日的理想<span class="kw">空襲</span></div>
+      </div>
     </div>
 
-    <div id="restart-container">
-        <img id="restart-icon" src="https://raw.githubusercontent.com/sherookie/Book/main/plane.png" alt="飛機圖示">
-        <p id="restart-text">回首頁</p>
+    <!-- 進入邀請（取代「前往繪本」按鈕） -->
+    <button class="invitation" id="invitation" type="button" aria-label="輕觸進入空襲">
+      <span class="invitation-text">輕觸　進入空襲</span>
+      <span class="invitation-line" aria-hidden="true"></span>
+    </button>
+
+    <!-- Skip 提示 -->
+    <div class="skip-hint" id="skipHint" aria-hidden="true">輕觸畫面任意處　以加速</div>
+
+  </div>
+</div>
+
+<!-- ============== 翻轉手機警告 (保留) ============== -->
+<div id="orientation-warning">
+  <svg class="rotate-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+    <line x1="12" y1="18" x2="12.01" y2="18"></line>
+  </svg>
+  <p style="font-size: 1.2rem; letter-spacing: 0.15em; font-weight: 300;">請翻轉手機<br>
+    <span style="font-size: 0.85rem; color: rgba(255,255,255,0.5); margin-top: 12px; display: inline-block; letter-spacing: 0.05em;">以橫向模式獲得最佳互動體驗</span>
+  </p>
+</div>
+
+<!-- ============== 翻書 (保留所有頁與 hotspot) ============== -->
+<div id="flipbook-container">
+  <div id="interaction-hint-cover">小提示：試著點擊書頁中發光的物件。</div>
+  <div id="book">
+    <div class="page page--cover">
+      <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_1.png" alt="封面">
+    </div>
+    <div class="page">
+      <div class="page-content">
+        <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_2.png" alt="第 1 頁">
+        <div id="airplane-hotspot"><div class="hotspot-icon airplane-left-icon"></div></div>
+      </div>
+    </div>
+    <div class="page">
+      <div class="page-content">
+        <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_3.png" alt="第 2 頁">
+        <div id="airplane2-hotspot"><div class="hotspot-icon airplane-right-icon"></div></div>
+      </div>
+    </div>
+    <div class="page">
+      <div class="page-content">
+        <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_4.png" alt="第 3 頁">
+        <div id="book-hotspot"><div class="hotspot-icon book-icon"></div></div>
+      </div>
+    </div>
+    <div class="page">
+      <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_5.png" alt="第 4 頁">
+    </div>
+    <div class="page">
+      <div class="page-content">
+        <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_6.png" alt="第 5 頁">
+        <div id="train-hotspot"><div class="hotspot-icon train-left-icon"></div></div>
+      </div>
+    </div>
+    <div class="page">
+      <div class="page-content">
+        <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_7.png" alt="第 6 頁">
+        <div id="train2-hotspot"><div class="hotspot-icon train-right-icon"></div></div>
+      </div>
+    </div>
+    <div class="page">
+      <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_8.png" alt="第 7 頁">
+    </div>
+    <div class="page">
+      <div class="page-content">
+        <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_9.png" alt="第 8 頁">
+        <div id="phone-hotspot"><div class="hotspot-icon phone-icon"></div></div>
+      </div>
+    </div>
+    <div class="page page--cover">
+      <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_10.png" alt="封底">
+    </div>
+  </div>
+</div>
+
+<!-- ============== 封底迴響 Overlay ============== -->
+<div id="echo-overlay" aria-label="封底迴響" aria-hidden="true">
+  <div class="echo-stage">
+    <div class="echo-line top" id="echoLineTop"></div>
+
+    <p class="echo-text-wrap">
+      <span class="echo-text" id="echoText" data-text="不斷對舊日的理想空襲"></span><span class="echo-cursor" id="echoCursor"></span>
+    </p>
+
+    <p class="echo-meta" id="echoMeta">— 鯨向海《空襲》</p>
+
+    <div class="echo-actions" id="echoActions">
+      <button class="echo-btn" id="echoRestart" type="button">再讀一次</button>
+      <span class="echo-divider" aria-hidden="true">／</span>
+      <button class="echo-btn" id="echoEnd" type="button">結束</button>
     </div>
 
-    <div id="flipbook-container">
-        <div id="interaction-hint-cover">
-        小提示：試著點擊書頁中發光的物件。
-        </div>
-        <div id="book">
-            <div class="page page--cover">
-                <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_1.png" alt="封面">
-            </div>
-            <div class="page">
-                <div class="page-content"> <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_2.png" alt="第 1 頁">
-                    <div id="airplane-hotspot"><div class="hotspot-icon airplane-left-icon"></div></div>
-                </div> 
-            </div>
-            <div class="page">
-                <div class="page-content">
-                    <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_3.png" alt="第 2 頁">
-                    <div id="airplane2-hotspot"><div class="hotspot-icon airplane-right-icon"></div></div>
-                </div>
-            </div>
-            <div class="page">
-                <div class="page-content">
-                    <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_4.png" alt="第 3 頁">
-            <div id="book-hotspot"><div class="hotspot-icon book-icon"></div></div>
-                </div>
-            </div>
-            <div class="page">
-                <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_5.png" alt="第 4 頁">
-            </div>
-            <div class="page">
-                <div class="page-content">
-                    <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_6.png" alt="第 5 頁">
-            <div id="train-hotspot"><div class="hotspot-icon train-left-icon"></div></div>
-            </div>
-            <div class="page">
-                <div class="page-content">
-                    <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_7.png" alt="第 6 頁">
-                    <div id="train2-hotspot"><div class="hotspot-icon train-right-icon"></div></div>
-            </div>
-            <div class="page">
-                <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_8.png" alt="第 7 頁">
-            </div>
-            <div class="page">
-                <div class="page-content">
-                    <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_9.png" alt="第 8 頁">
-            <div id="phone-hotspot"><div class="hotspot-icon phone-icon"></div></div>
-            </div>
-            <div class="page page--cover">
-                <img src="https://raw.githubusercontent.com/sherookie/Book/main/Airstrike_10.png" alt="封底">
-            </div>
-        </div>
-    </div>
+    <div class="echo-line bottom" id="echoLineBottom"></div>
+  </div>
+</div>
 
-   <script>
-    window.onload = () => {
-            // --- 1. 宣告所有需要的 DOM 元素 (修復當機問題) ---
-            const startOverlay = document.getElementById('start-overlay');
-            const startButton = document.getElementById('start-button');
-            const readingZone = document.getElementById('reading-zone');
-            const scrollContent = document.getElementById('scroll-content');
-            const dimLayer = document.getElementById('dim-layer');
-            const brightLayer = document.getElementById('bright-layer');
-            const bgVideo = document.getElementById('bg-video');
-            const backgroundMusic = document.getElementById('background-music');
-            const bookContainer = document.getElementById('flipbook-container');
-            const fabButton = document.getElementById('text-fab');
-            const poemSidebar = document.getElementById('poem-sidebar');
-            const closeSidebarBtn = document.getElementById('close-sidebar-btn');
-            const restartContainer = document.getElementById('restart-container');
+<script>
+window.addEventListener('load', () => {
 
-            // --- 3. 開場動畫與按鈕顯示 ---
-            setTimeout(() => {
-                if (startOverlay) startOverlay.style.opacity = '1';
-            }, 500);
+  /* =========================================================
+     DOM REFS
+     ========================================================= */
+  const startOverlay   = document.getElementById('start-overlay');
+  const bgVideo        = document.getElementById('bg-video');
+  const backgroundMusic = document.getElementById('background-music');
+  const bookContainer  = document.getElementById('flipbook-container');
 
-            setTimeout(() => {
-                if (startButton) startButton.style.opacity = '1';
-            }, 4000); // 4秒後顯示按鈕
+  const bookTitle      = document.getElementById('bookTitle');
+  const titleChars     = document.querySelectorAll('.title-zh .char');
+  const titleEn        = document.querySelector('.title-en');
+  const titleLine      = document.querySelector('.title-line');
+  const readingZone    = document.getElementById('readingZone');
+  const poemCols       = document.querySelectorAll('.reading-zone .poem-column');
+  const invitation     = document.getElementById('invitation');
+  const skipHint       = document.getElementById('skipHint');
 
-            // ★ 強制將畫面鎖定在最右側 (不依賴標題，直接鎖定邊界)
-            setTimeout(() => {
-                if (window.innerWidth > 1024 && readingZone) {
-                    // 在 direction: rtl 的環境下，scrollLeft = 0 或是極大值
-                    // 這裡直接取 scrollWidth 確保推到最右邊
-                    readingZone.scrollLeft = readingZone.scrollWidth;
-                    
-                    // 針對部分瀏覽器 (如 Chrome) 的 RTL 捲軸邏輯微調
-                    if (readingZone.scrollLeft < 0) {
-                        readingZone.scrollLeft = 0;
-                    }
-                }
-            }, 100);
-                        // --- 4. 影片自動播放處理 ---
-            if (bgVideo) {
-                let playPromise = bgVideo.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(() => {
-                        const forcePlay = () => {
-                            bgVideo.play();
-                            document.removeEventListener('touchstart', forcePlay);
-                            document.removeEventListener('click', forcePlay);
-                        };
-                        document.addEventListener('touchstart', forcePlay, { once: true });
-                        document.addEventListener('click', forcePlay, { once: true });
-                    });
-                }
-            }
+  const echoOverlay    = document.getElementById('echo-overlay');
 
-            // --- 5. 進入繪本邏輯 ---
-            if (startOverlay && startButton) {
-                startOverlay.addEventListener('click', (e) => {
-                    if (e.target.id === 'start-button') {
-                        document.body.classList.add('book-mode');
-                        if (backgroundMusic) {
-                            backgroundMusic.volume = 0.5;
-                            backgroundMusic.play().catch(err => console.log(err));
-                        }
-                        
-                        startButton.style.opacity = '0';
-                        initializeFlipbook(); 
-                        if (bookContainer) bookContainer.classList.add('show-book');
+  /* =========================================================
+     OPENING SEQUENCE — 起始畫面時序
+     ========================================================= */
+  let openingTimers = [];
+  let openingDone = false;
+  let pageFlip; // 宣告在外層以便按鈕取用
+  let echoTriggered = false; // 將觸發狀態也提至外層
 
-                        setTimeout(() => {
-                            startOverlay.style.opacity = '0'; 
-                            setTimeout(() => {
-                                startOverlay.style.display = 'none'; 
-                                if (fabButton) fabButton.style.display = 'flex'; 
-                            }, 500); 
-                        }, 100); 
-                        e.stopPropagation(); 
-                    }
-                });
-            }
+  function schedule(fn, delay) {
+    const t = setTimeout(fn, delay);
+    openingTimers.push(t);
+    return t;
+  }
+  function clearOpeningTimers() {
+    openingTimers.forEach(clearTimeout);
+    openingTimers = [];
+  }
 
-            // --- 6. 側邊欄與回首頁邏輯 ---
-            if (fabButton) {
-                fabButton.addEventListener('click', (e) => { 
-                    e.stopPropagation(); 
-                    if (poemSidebar) poemSidebar.classList.add('visible'); 
-                });
-            }
-            if (closeSidebarBtn) {
-                closeSidebarBtn.addEventListener('click', () => { 
-                    if (poemSidebar) poemSidebar.classList.remove('visible'); 
-                });
-            }
-            if (bookContainer) {
-                bookContainer.addEventListener('click', () => { 
-                    if (poemSidebar) poemSidebar.classList.remove('visible'); 
-                });
-            }
-            if (restartContainer) {
-                const reloadPage = (e) => { 
-                    e.stopPropagation(); 
-                    document.body.classList.remove('book-mode'); 
-                    window.location.reload(); 
-                };
-                restartContainer.addEventListener('click', reloadPage);
-                restartContainer.addEventListener('touchend', reloadPage);
-            }
+  function runOpeningSequence() {
+    clearOpeningTimers();
+    openingDone = false;
 
-            // --- 7. Flipbook 初始化 ---
-            function initializeFlipbook() {
-                const book = document.getElementById('book');
-                if (book) book.style.display = 'block';
+    // T+0.4s ~ : 標題逐字
+    titleChars.forEach((ch, i) => schedule(() => ch.classList.add('in'), 400 + i * 280));
+    schedule(() => titleEn?.classList.add('in'), 1000);
+    schedule(() => titleLine?.classList.add('in'), 1500);
 
-                const stopPageDrag = (e) => e.stopPropagation();
-                const handleHotspotTap = (e) => {
-                    e.stopPropagation(); 
-                    if (e.cancelable) e.preventDefault(); 
-                    let soundToPlay;
-                    const targetId = e.currentTarget.id; 
-                    if (targetId.includes('airplane')) soundToPlay = document.getElementById('airplaneSound');
-                    else if (targetId.includes('book')) soundToPlay = document.getElementById('bookSound');
-                    else if (targetId.includes('train')) soundToPlay = document.getElementById('trainSound');
-                    else if (targetId.includes('phone')) soundToPlay = document.getElementById('phoneSound');
-                    
-                    if (soundToPlay) {
-                        soundToPlay.currentTime = 0;
-                        soundToPlay.play().catch(err => console.log(err));
-                    }
-                };
-                
-                document.querySelectorAll('[id$="-hotspot"]').forEach(hotspot => {
-                    hotspot.addEventListener('mousedown', stopPageDrag);
-                    hotspot.addEventListener('touchstart', stopPageDrag, { passive: false }); 
-                    hotspot.addEventListener('click', handleHotspotTap);     
-                    hotspot.addEventListener('touchend', handleHotspotTap);  
-                });
-                
-                if (typeof St === 'undefined' || typeof St.PageFlip === 'undefined') {
-                    console.error('St.PageFlip 載入失敗！');
-                    return;
-                }
+    // T+3.4s: 標題退場
+    schedule(() => bookTitle.classList.add('has-left'), 3400);
+    // T+3.8s: 詩文容器淡入
+    schedule(() => readingZone.classList.add('in'), 3800);
 
-                const pageFlip = new St.PageFlip(book, {
-                    width: 2792, height: 3167, size: "stretch", minWidth: 320, minHeight: 480,
-                    drawShadow: true, flippingTime: 800, showCover: true, useMouseEvents: true, useTouchEvents: true
-                });
-                
-                pageFlip.loadFromHTML(document.querySelectorAll('.page'));
+    // T+4.0s: 按鈕進入 subtle
+    schedule(() => invitation.classList.add('subtle'), 4000);
+    // T+4.5s: skip 提示
+    schedule(() => skipHint.classList.add('in'), 4500);
 
-                pageFlip.on('flip', (e) => {
-                    const totalPages = pageFlip.getPageCount();
-                    if (restartContainer) {
-                        if (e.data >= totalPages - 1) restartContainer.classList.add('visible');
-                        else restartContainer.classList.remove('visible');
-                    }
-                });
-            }
+    // 詩句逐節錯開、節內逐行
+    poemCols.forEach((col) => {
+      const baseDelay = 4000;
+      let stanzaDelay = 0;
+      if (col.classList.contains('title-column')) stanzaDelay = 0;
+      else if (col.classList.contains('stanza-1')) stanzaDelay = 600;
+      else if (col.classList.contains('stanza-2')) stanzaDelay = 2400;
+      else if (col.classList.contains('stanza-3')) stanzaDelay = 4200;
+      else if (col.classList.contains('stanza-4')) stanzaDelay = 6000;
+
+      const stanzaClass = [...col.classList].find(c => /^stanza-\d$/.test(c)) || 'title-column';
+      const lineIdx = Array.from(col.parentElement.children)
+        .filter(c => c.classList.contains(stanzaClass))
+        .indexOf(col);
+      const lineDelay = lineIdx * 180;
+
+      schedule(() => col.classList.add('in'), baseDelay + stanzaDelay + lineDelay);
+    });
+
+    // T+11s: 詩讀完，按鈕 full
+    schedule(() => {
+      invitation.classList.add('full');
+      skipHint.classList.remove('in');
+      openingDone = true;
+    }, 11000);
+
+    // 強制 RTL 滾到最右（電腦版）
+    schedule(() => {
+      if (window.innerWidth > 1024 && readingZone) {
+        readingZone.scrollLeft = readingZone.scrollWidth;
+        if (readingZone.scrollLeft < 0) readingZone.scrollLeft = 0;
+      }
+    }, 100);
+  }
+
+  /* =========================================================
+     SKIP — 點擊空白 / 鍵盤
+     ========================================================= */
+  function skipOpeningAnimation() {
+    if (openingDone) return;
+    clearOpeningTimers();
+
+    titleChars.forEach(c => c.classList.add('in'));
+    titleEn?.classList.add('in');
+    titleLine?.classList.add('in');
+    bookTitle.classList.add('has-left');
+    readingZone.classList.add('in');
+    poemCols.forEach(p => p.classList.add('in'));
+
+    invitation.classList.add('subtle', 'full');
+    skipHint.classList.remove('in');
+
+    if (window.innerWidth > 1024 && readingZone) {
+      readingZone.scrollLeft = readingZone.scrollWidth;
+      if (readingZone.scrollLeft < 0) readingZone.scrollLeft = 0;
+    }
+    openingDone = true;
+  }
+
+  // 點擊空白觸發 skip（避開詩、按鈕）
+  startOverlay.addEventListener('click', (e) => {
+    if (openingDone) return;
+    if (e.target.closest('.poem-column, .invitation')) return;
+    skipOpeningAnimation();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (openingDone || startOverlay.style.display === 'none') return;
+    if (e.key === ' ' || e.key === 'Enter' || e.key === 'Escape') {
+      e.preventDefault();
+      skipOpeningAnimation();
+    }
+  });
+
+  /* =========================================================
+     STANZA HOVER GROUP — hover 一行整段微微浮現
+     ========================================================= */
+  poemCols.forEach(col => {
+    col.addEventListener('mouseenter', () => {
+      const stanza = [...col.classList].find(c => /^stanza-\d$/.test(c));
+      if (!stanza) return;
+      document.querySelectorAll('.' + stanza).forEach(c => {
+        if (c !== col) c.classList.add('stanza-active');
+      });
+    });
+    col.addEventListener('mouseleave', () => {
+      document.querySelectorAll('.stanza-active').forEach(c => c.classList.remove('stanza-active'));
+    });
+  });
+
+  /* =========================================================
+     影片自動播放 (處理瀏覽器自動播放限制)
+     ========================================================= */
+  if (bgVideo) {
+    const playPromise = bgVideo.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        const forcePlay = () => {
+          bgVideo.play();
+          document.removeEventListener('touchstart', forcePlay);
+          document.removeEventListener('click', forcePlay);
         };
-   </script>
+        document.addEventListener('touchstart', forcePlay, { once: true });
+        document.addEventListener('click', forcePlay, { once: true });
+      });
+    }
+  }
+
+  /* =========================================================
+     進入繪本：點擊 invitation
+     ========================================================= */
+  invitation.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!openingDone) skipOpeningAnimation();
+    handleEnterBook();
+  });
+
+  function handleEnterBook() {
+    // 詩反向逐句熄滅
+    const cols = Array.from(poemCols);
+    cols.slice().reverse().forEach((col, i) => {
+      setTimeout(() => col.classList.add('exiting'), i * 35);
+    });
+
+    // 邀請按鈕淡出
+    invitation.style.transition = 'opacity 0.5s var(--ease)';
+    invitation.style.opacity = '0';
+
+    // 播放背景音樂
+    if (backgroundMusic) {
+      backgroundMusic.volume = 0.5;
+      backgroundMusic.play().catch(err => console.log('Music autoplay blocked:', err));
+    }
+
+    // 1.4s 後切到書本
+    setTimeout(() => {
+      document.body.classList.add('book-mode');
+      initializeFlipbook();
+      bookContainer.classList.add('show-book');
+
+      // 起始畫面淡出隱藏
+      startOverlay.style.transition = 'opacity 0.6s var(--ease)';
+      startOverlay.style.opacity = '0';
+      setTimeout(() => {
+        startOverlay.style.display = 'none';
+      }, 600);
+    }, 1400);
+  }
+
+  /* =========================================================
+     FLIPBOOK 初始化 (保留原邏輯 + 加封底迴響觸發)
+     ========================================================= */
+  function initializeFlipbook() {
+    const book = document.getElementById('book');
+    if (book) book.style.display = 'block';
+
+    // Hotspot 點擊播放音效
+    const stopPageDrag = (e) => e.stopPropagation();
+    const handleHotspotTap = (e) => {
+      e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
+      let soundToPlay;
+      const targetId = e.currentTarget.id;
+      if (targetId.includes('airplane'))    soundToPlay = document.getElementById('airplaneSound');
+      else if (targetId.includes('book'))   soundToPlay = document.getElementById('bookSound');
+      else if (targetId.includes('train'))  soundToPlay = document.getElementById('trainSound');
+      else if (targetId.includes('phone'))  soundToPlay = document.getElementById('phoneSound');
+
+      if (soundToPlay) {
+        soundToPlay.currentTime = 0;
+        soundToPlay.play().catch(err => console.log(err));
+      }
+    };
+
+    document.querySelectorAll('[id$="-hotspot"]').forEach(hotspot => {
+      hotspot.addEventListener('mousedown',  stopPageDrag);
+      hotspot.addEventListener('touchstart', stopPageDrag, { passive: false });
+      hotspot.addEventListener('click',     handleHotspotTap);
+      hotspot.addEventListener('touchend',  handleHotspotTap);
+    });
+
+    if (typeof St === 'undefined' || typeof St.PageFlip === 'undefined') {
+      console.error('St.PageFlip 載入失敗！');
+      return;
+    }
+
+    const pageFlip = new St.PageFlip(book, {
+      width: 2792, height: 3167, size: "stretch",
+      minWidth: 320, minHeight: 480,
+      drawShadow: true, flippingTime: 800,
+      showCover: true, useMouseEvents: true, useTouchEvents: true
+    });
+
+    pageFlip.loadFromHTML(document.querySelectorAll('.page'));
+
+    if (typeof St === 'undefined' || typeof St.PageFlip === 'undefined') return;
+
+    // 確保不會重複初始化
+    if (!pageFlip) {
+      pageFlip = new St.PageFlip(book, {
+        width: 2792, height: 3167, size: "stretch",
+        minWidth: 320, minHeight: 480,
+        drawShadow: true, flippingTime: 800,
+        showCover: true, useMouseEvents: true, useTouchEvents: true
+      });
+
+      pageFlip.loadFromHTML(document.querySelectorAll('.page'));
+
+      pageFlip.on('flip', (e) => {
+        const totalPages = pageFlip.getPageCount();
+        if (e.data >= totalPages - 1 && !echoTriggered) {
+          echoTriggered = true;
+          setTimeout(() => triggerEchoOverlay(), 2000);
+        }
+      });
+    }
+
+    // 翻到最後一頁觸發迴響（延遲 2 秒讓使用者看封底插圖）
+    let echoTriggered = false;
+    pageFlip.on('flip', (e) => {
+      const totalPages = pageFlip.getPageCount();
+      if (e.data >= totalPages - 1 && !echoTriggered) {
+        echoTriggered = true;
+        setTimeout(() => triggerEchoOverlay(), 2000);
+      }
+    });
+  }
+
+  /* =========================================================
+     ECHO OVERLAY — 封底迴響
+     ========================================================= */
+  function triggerEchoOverlay() {
+    echoOverlay.setAttribute('aria-hidden', 'false');
+    echoOverlay.classList.add('visible');
+    runClosingSequence();
+  }
+
+  function runClosingSequence() {
+    const echoText      = document.getElementById('echoText');
+    const echoCursor    = document.getElementById('echoCursor');
+    const echoMeta      = document.getElementById('echoMeta');
+    const echoActions   = document.getElementById('echoActions');
+    const echoLineTop   = document.getElementById('echoLineTop');
+    const echoLineBot   = document.getElementById('echoLineBottom');
+
+    const text = echoText.dataset.text;
+    echoText.innerHTML = '';
+    const chars = [...text].map(c => {
+      const s = document.createElement('span');
+      s.className = 'ch';
+      if (c === '空' || c === '襲') s.classList.add('accent');
+      s.textContent = c;
+      echoText.appendChild(s);
+      return s;
+    });
+
+    setTimeout(() => echoLineTop.classList.add('in'), 400);
+    setTimeout(() => echoCursor.classList.add('in'), 1200);
+
+    const charStart = 1600;
+    const charInterval = 220;
+    chars.forEach((ch, i) => {
+      setTimeout(() => ch.classList.add('in'), charStart + i * charInterval);
+    });
+
+    const allCharsDone = charStart + chars.length * charInterval;
+    setTimeout(() => echoCursor.classList.add('gone'), allCharsDone + 1200);
+    setTimeout(() => echoLineBot.classList.add('in'),  allCharsDone + 600);
+    setTimeout(() => echoMeta.classList.add('in'),     allCharsDone + 1600);
+    setTimeout(() => echoActions.classList.add('in'),  allCharsDone + 2200);
+  }
+
+/* =========================================================
+     按鈕邏輯：重置與跳轉
+     ========================================================= */
+     
+  // 建立一個專屬函式：徹底清除第一次進場留下的動畫狀態
+  function resetOpeningState() {
+    // 1. 清除標題狀態
+    bookTitle.classList.remove('has-left');
+    titleChars.forEach(ch => ch.classList.remove('in'));
+    if (titleEn) titleEn.classList.remove('in');
+    if (titleLine) titleLine.classList.remove('in');
+
+    // 2. 清除詩句與容器狀態
+    readingZone.classList.remove('in');
+    readingZone.scrollTop = 0; // 重置垂直滾動，回到第一句
+    poemCols.forEach(col => {
+      col.classList.remove('in', 'exiting', 'stanza-active');
+    });
+
+    // 3. 清除邀請按鈕的 inline style (之前進書本時被設為隱藏了)
+    invitation.classList.remove('subtle', 'full');
+    invitation.style.opacity = ''; 
+    invitation.style.transition = '';
+
+    // 4. 清除 Skip 提示狀態
+    skipHint.classList.remove('in');
+  }
+
+  // 「再讀一次」: 翻回首頁，音樂繼續播
+  document.getElementById('echoRestart').addEventListener('click', () => {
+    // 1. 隱藏封底迴響畫面
+    echoOverlay.classList.remove('visible');
+    setTimeout(() => { echoOverlay.setAttribute('aria-hidden', 'true'); }, 1800);
+
+    // 2. 觸發翻書動畫，帥氣地翻回第 1 頁封面 (音樂不會中斷)
+    if (pageFlip) {
+      pageFlip.flip(0); 
+    }
+    
+    // 3. 重置狀態，允許再次翻到最後一頁時能重新觸發迴響
+    echoTriggered = false; 
+  });
+
+  // 「結束」: 退回起始畫面，從標題動畫重新開始
+  document.getElementById('echoEnd').addEventListener('click', () => {
+    // 1. 隱藏封底迴響畫面
+    echoOverlay.classList.remove('visible');
+    setTimeout(() => { echoOverlay.setAttribute('aria-hidden', 'true'); }, 1800);
+
+    // 2. 音樂淡出並暫停
+    if (backgroundMusic) {
+      const fadeStep = setInterval(() => {
+        if (backgroundMusic.volume > 0.05) {
+          backgroundMusic.volume -= 0.05;
+        } else { 
+          backgroundMusic.pause(); 
+          backgroundMusic.currentTime = 0; // 音樂回到開頭，等下次進入再播
+          clearInterval(fadeStep); 
+        }
+      }, 80);
+    }
+
+    // 3. 隱藏繪本，重置書本狀態
+    document.body.classList.remove('book-mode');
+    bookContainer.classList.remove('show-book');
+    if (pageFlip) {
+      pageFlip.turnToPage(0); // 確保下次進來時是翻好在第一頁的狀態
+    }
+    echoTriggered = false;
+
+    // 4. 徹底重置起始畫面的所有動畫狀態
+    resetOpeningState();
+
+    // 5. 重新顯示起始畫面，並呼叫進場序列
+    startOverlay.style.display = 'flex';
+    setTimeout(() => { 
+      startOverlay.style.opacity = '1'; 
+      runOpeningSequence(); // 從「空襲」標題字體浮現開始重新跑
+    }, 50);
+  });
+runOpeningSequence();
+
+});
+</script>
 
 </body>
 </html>
